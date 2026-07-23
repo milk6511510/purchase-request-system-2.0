@@ -1,0 +1,1771 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>公司內部請購單</title>
+  <style>
+    :root {
+      --bg: #eef1f5;
+      --panel: #ffffff;
+      --panel-soft: #f7f9fc;
+      --ink: #202733;
+      --muted: #657183;
+      --line: #cfd6df;
+      --brand: #2457a6;
+      --brand-strong: #173f7e;
+      --ok: #14745c;
+      --warn: #a95f00;
+      --danger: #bd2c2c;
+      --shadow: 0 12px 30px rgba(25, 36, 54, 0.1);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: "Microsoft JhengHei", "Noto Sans TC", Arial, sans-serif;
+      line-height: 1.5;
+    }
+
+    button, input, select, textarea {
+      font: inherit;
+    }
+
+    .app-shell {
+      width: min(1180px, calc(100% - 28px));
+      margin: 18px auto 40px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      background: #172033;
+      color: #fff;
+      padding: 14px 18px;
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+
+    .brand-title {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .brand-title strong {
+      font-size: 20px;
+      letter-spacing: 0;
+    }
+
+    .brand-title span {
+      color: #cbd5e1;
+      font-size: 13px;
+    }
+
+    .user-box {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 10px;
+      flex-wrap: wrap;
+      font-size: 14px;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin: 16px 0;
+      flex-wrap: wrap;
+    }
+
+    .tab-btn, .ghost-btn, .primary-btn, .danger-btn, .icon-btn {
+      border: 1px solid transparent;
+      border-radius: 6px;
+      min-height: 40px;
+      padding: 9px 14px;
+      cursor: pointer;
+      font-weight: 700;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+
+    .tab-btn {
+      background: #fff;
+      color: var(--muted);
+      border-color: var(--line);
+    }
+
+    .tab-btn.active {
+      background: var(--brand);
+      color: #fff;
+      border-color: var(--brand);
+    }
+
+    .primary-btn {
+      background: var(--brand);
+      color: #fff;
+    }
+
+    .primary-btn:hover { background: var(--brand-strong); }
+
+    .ghost-btn {
+      background: #fff;
+      color: var(--ink);
+      border-color: var(--line);
+    }
+
+    .danger-btn {
+      background: #fff4f4;
+      color: var(--danger);
+      border-color: #f3b9b9;
+    }
+
+    .icon-btn {
+      width: 40px;
+      padding: 0;
+      background: #fff;
+      color: var(--danger);
+      border-color: #e1b1b1;
+      font-size: 18px;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .panel-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: flex-start;
+      padding: 18px 20px;
+      border-bottom: 1px solid var(--line);
+      background: #fbfcfe;
+    }
+
+    .panel-title h1, .panel-title h2 {
+      margin: 0;
+      font-size: 24px;
+    }
+
+    .panel-title p {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid #bdd4f6;
+      background: #edf5ff;
+      color: var(--brand-strong);
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 13px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .content {
+      padding: 20px;
+    }
+
+    .form-section {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      margin-bottom: 18px;
+      overflow: hidden;
+    }
+
+    .section-label {
+      margin: 0;
+      padding: 10px 12px;
+      background: #e9edf3;
+      border-bottom: 1px solid var(--line);
+      font-size: 15px;
+      font-weight: 800;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      padding: 14px;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      min-width: 0;
+    }
+
+    .field.full { grid-column: 1 / -1; }
+    .field.half { grid-column: span 2; }
+
+    label {
+      color: #344054;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      border: 1px solid #bfc8d4;
+      border-radius: 5px;
+      background: #fff;
+      padding: 9px 10px;
+      color: var(--ink);
+      min-height: 40px;
+    }
+
+    input:focus, select:focus, textarea:focus {
+      outline: 2px solid rgba(36, 87, 166, 0.18);
+      border-color: var(--brand);
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 92px;
+    }
+
+    .checks {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(130px, 1fr));
+      gap: 8px;
+      padding: 14px;
+    }
+
+    .checks label, .inline-check {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      border: 1px solid #d8dee8;
+      border-radius: 6px;
+      background: #fff;
+      padding: 8px 9px;
+      font-weight: 600;
+      font-size: 13px;
+    }
+
+    .checks input, .inline-check input {
+      width: auto;
+      min-height: auto;
+    }
+
+    .items-table-wrap {
+      overflow-x: auto;
+      padding: 14px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 920px;
+    }
+
+    th, td {
+      border: 1px solid var(--line);
+      padding: 8px;
+      vertical-align: top;
+      background: #fff;
+    }
+
+    th {
+      background: #eef2f7;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    td input {
+      border: 0;
+      border-radius: 0;
+      padding: 6px;
+      min-height: 34px;
+      background: #fbfcfe;
+    }
+
+    td input:focus {
+      outline: 1px solid var(--brand);
+    }
+
+    .number-cell { text-align: right; }
+
+    .item-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 0 14px 14px;
+      flex-wrap: wrap;
+    }
+
+    .total-box {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 800;
+      color: var(--brand-strong);
+      font-size: 18px;
+    }
+
+    .form-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      padding-top: 4px;
+      flex-wrap: wrap;
+    }
+
+    .login-screen {
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+
+    .login-card {
+      width: min(440px, 100%);
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      padding: 24px;
+    }
+
+    .login-card h1 {
+      margin: 0 0 6px;
+      font-size: 24px;
+    }
+
+    .login-card p {
+      margin: 0 0 20px;
+      color: var(--muted);
+    }
+
+    .hint {
+      margin-top: 14px;
+      color: var(--muted);
+      font-size: 13px;
+      background: #f6f8fb;
+      border: 1px solid #dce3ec;
+      padding: 10px;
+      border-radius: 6px;
+    }
+
+    .records-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .record-row {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr 1fr auto;
+      gap: 12px;
+      align-items: center;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      background: #fff;
+    }
+
+    .record-row strong {
+      display: block;
+      margin-bottom: 2px;
+    }
+
+    .record-row span {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .record-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+    }
+
+    .notice {
+      border: 1px solid #f1d19b;
+      background: #fff8ea;
+      color: #6f4700;
+      padding: 10px 12px;
+      border-radius: 6px;
+      margin-bottom: 14px;
+      font-weight: 700;
+    }
+
+    .photo-upload {
+      padding: 14px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .upload-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .upload-row input[type="file"] {
+      max-width: 360px;
+      background: #fff;
+    }
+
+    .photo-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 10px;
+    }
+
+    .photo-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      overflow: hidden;
+    }
+
+    .photo-card img {
+      display: block;
+      width: 100%;
+      aspect-ratio: 4 / 3;
+      object-fit: cover;
+      background: #edf1f6;
+    }
+
+    .photo-card footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 8px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .photo-card button {
+      min-height: 32px;
+      padding: 4px 8px;
+    }
+
+    .signature-box {
+      padding: 14px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .signature-preview {
+      min-height: 86px;
+      border: 1px dashed #aab5c3;
+      border-radius: 8px;
+      background: #fbfcfe;
+      display: grid;
+      place-items: center;
+      color: var(--muted);
+      overflow: hidden;
+    }
+
+    .signature-preview img {
+      max-width: 100%;
+      max-height: 112px;
+      display: block;
+    }
+
+    .approval-flow {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      padding: 14px;
+      border-top: 1px solid var(--line);
+      background: #fbfcfe;
+    }
+
+    .approval-step {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px;
+      background: #fff;
+    }
+
+    .approval-step strong {
+      display: block;
+      margin-bottom: 3px;
+    }
+
+    .approval-step span {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .signature-dialog {
+      width: min(720px, calc(100% - 18px));
+    }
+
+    .signature-pad-wrap {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+      background: #fff;
+      touch-action: none;
+    }
+
+    #signaturePad {
+      display: block;
+      width: 100%;
+      height: 260px;
+      cursor: crosshair;
+      touch-action: none;
+    }
+
+    .liquid-orb {
+      position: fixed;
+      inset: auto;
+      pointer-events: none;
+      z-index: -1;
+      filter: blur(24px);
+      opacity: 0.58;
+      animation: liquidDrift 14s ease-in-out infinite alternate;
+    }
+
+    .orb-a {
+      width: 360px;
+      height: 360px;
+      left: -90px;
+      top: -90px;
+      background: radial-gradient(circle, rgba(119, 190, 255, 0.75), rgba(119, 190, 255, 0));
+    }
+
+    .orb-b {
+      width: 420px;
+      height: 420px;
+      right: -120px;
+      bottom: 8vh;
+      background: radial-gradient(circle, rgba(196, 224, 255, 0.8), rgba(196, 224, 255, 0));
+      animation-delay: -5s;
+    }
+
+    .admin-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+
+    .admin-card {
+      border: 1px solid rgba(255, 255, 255, 0.62);
+      background: rgba(255, 255, 255, 0.58);
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: 0 14px 34px rgba(42, 55, 78, 0.12);
+      backdrop-filter: blur(22px) saturate(150%);
+      -webkit-backdrop-filter: blur(22px) saturate(150%);
+    }
+
+    .admin-card h3 {
+      margin: 0 0 10px;
+      font-size: 18px;
+    }
+
+    .role-list {
+      display: grid;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .role-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      border: 1px solid rgba(174, 188, 207, 0.62);
+      background: rgba(255, 255, 255, 0.64);
+      border-radius: 12px;
+      padding: 10px;
+    }
+
+    .role-row span {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .approval-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 9px;
+      border-radius: 999px;
+      background: rgba(20, 116, 92, 0.1);
+      color: var(--ok);
+      font-size: 12px;
+      font-weight: 800;
+      border: 1px solid rgba(20, 116, 92, 0.18);
+    }
+
+    @keyframes liquidDrift {
+      from { transform: translate3d(0, 0, 0) scale(1); }
+      to { transform: translate3d(36px, 28px, 0) scale(1.08); }
+    }
+
+    @media (prefers-reduced-motion: no-preference) {
+      .panel, .login-card, .admin-card, .record-row, .form-section {
+        animation: glassRise 0.42s ease both;
+      }
+
+      .tab-btn, .primary-btn, .ghost-btn, .danger-btn, .icon-btn {
+        transition: transform 0.16s ease, background 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+      }
+
+      .tab-btn:hover, .primary-btn:hover, .ghost-btn:hover, .danger-btn:hover, .icon-btn:hover {
+        transform: translateY(-1px);
+      }
+    }
+
+    @keyframes glassRise {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    body {
+      background:
+        linear-gradient(135deg, rgba(244, 249, 255, 0.96), rgba(228, 236, 248, 0.96) 46%, rgba(250, 252, 255, 0.98)),
+        var(--bg);
+    }
+
+    .topbar, .panel, .login-card, dialog {
+      border: 1px solid rgba(255, 255, 255, 0.58);
+      background: rgba(255, 255, 255, 0.54);
+      color: var(--ink);
+      backdrop-filter: blur(24px) saturate(165%);
+      -webkit-backdrop-filter: blur(24px) saturate(165%);
+      box-shadow: 0 18px 44px rgba(31, 45, 71, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+    }
+
+    .topbar {
+      background: rgba(255, 255, 255, 0.45);
+    }
+
+    .brand-title span, .user-box {
+      color: var(--muted);
+    }
+
+    .panel-head, .section-label, th {
+      background: rgba(255, 255, 255, 0.46);
+    }
+
+    .form-section, .record-row, .approval-step, .photo-card {
+      background: rgba(255, 255, 255, 0.52);
+      border-color: rgba(184, 197, 214, 0.66);
+      backdrop-filter: blur(16px) saturate(140%);
+      -webkit-backdrop-filter: blur(16px) saturate(140%);
+    }
+
+    input, select, textarea, td input {
+      background: rgba(255, 255, 255, 0.64);
+      border-color: rgba(175, 190, 209, 0.72);
+    }
+
+    .hidden { display: none !important; }
+
+    dialog {
+      border: 0;
+      border-radius: 8px;
+      padding: 0;
+      width: min(430px, calc(100% - 24px));
+      box-shadow: 0 25px 70px rgba(0, 0, 0, 0.25);
+    }
+
+    dialog::backdrop {
+      background: rgba(13, 20, 33, 0.45);
+    }
+
+    .dialog-body {
+      padding: 20px;
+    }
+
+    .dialog-body h3 {
+      margin: 0 0 8px;
+      font-size: 20px;
+    }
+
+    .dialog-body p {
+      color: var(--muted);
+      margin: 0 0 16px;
+    }
+
+    @media (max-width: 860px) {
+      .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .checks { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .admin-grid { grid-template-columns: 1fr; }
+      .approval-flow { grid-template-columns: 1fr; }
+      .record-row { grid-template-columns: 1fr; }
+      .record-actions { justify-content: flex-start; }
+      .topbar { align-items: flex-start; flex-direction: column; }
+      .user-box { justify-content: flex-start; }
+    }
+
+    @media (max-width: 540px) {
+      .app-shell { width: min(100% - 16px, 1180px); margin-top: 8px; }
+      .content, .panel-head { padding: 14px; }
+      .grid { grid-template-columns: 1fr; }
+      .field.half { grid-column: 1 / -1; }
+      .checks { grid-template-columns: 1fr; }
+      .form-actions button, .tabs button { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="liquid-orb orb-a"></div>
+  <div class="liquid-orb orb-b"></div>
+  <main id="loginScreen" class="login-screen">
+    <section class="login-card">
+      <h1>公司內部請購單</h1>
+      <p>請使用公司配發的員工編號與密碼登入。</p>
+      <form id="loginForm">
+        <div class="field">
+          <label for="employeeId">員工編號</label>
+          <input id="employeeId" autocomplete="username" required placeholder="例如 A001">
+        </div>
+        <div class="field" style="margin-top:12px;">
+          <label for="password">登入密碼</label>
+          <input id="password" type="password" autocomplete="current-password" required placeholder="預設 demo">
+        </div>
+        <div class="field" style="margin-top:12px;">
+          <label for="companyEmail">公司信箱</label>
+          <input id="companyEmail" type="email" autocomplete="email" placeholder="第一次登入必填，例如 name@company.com">
+        </div>
+        <button class="primary-btn" type="submit" style="width:100%;margin-top:18px;">登入</button>
+      </form>
+      <div class="hint">第一次登入會建立註冊資料並保存公司信箱。測試密碼為 demo；A001 預設為最高權限管理者。</div>
+    </section>
+  </main>
+
+  <main id="app" class="app-shell hidden">
+    <header class="topbar">
+      <div class="brand-title">
+        <strong>股份有限公司 請購單</strong>
+        <span>電子表單系統 | 可串接 Google Sheet / Notion 後台</span>
+      </div>
+      <div class="user-box">
+        <span id="currentUser"></span>
+        <button class="ghost-btn" type="button" onclick="logout()">登出</button>
+      </div>
+    </header>
+
+    <nav class="tabs" aria-label="主要功能">
+      <button id="newTab" class="tab-btn active" type="button" onclick="showView('form')">新增請購單</button>
+      <button id="historyTab" class="tab-btn" type="button" onclick="showView('history')">我的過往請購單</button>
+      <button id="adminTab" class="tab-btn hidden" type="button" onclick="showView('admin')">權限管理</button>
+    </nav>
+
+    <section id="formView" class="panel">
+      <div class="panel-head">
+        <div class="panel-title">
+          <h1>請購單</h1>
+          <p>送出後 24 小時內可自行修改；超過時間請聯繫 IT 或相關工作人員。</p>
+        </div>
+        <span id="formStatus" class="status-pill">新增表單</span>
+      </div>
+
+      <form id="requestForm" class="content">
+        <input type="hidden" id="recordId">
+        <input type="hidden" id="createdAt">
+
+        <section class="form-section">
+          <h2 class="section-label">基本資料</h2>
+          <div class="grid">
+            <div class="field">
+              <label for="requestType">申請類型</label>
+              <select id="requestType" required>
+                <option value="一般">一般</option>
+                <option value="急件">急件</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="departmentCode">部門代號</label>
+              <input id="departmentCode" required placeholder="例如 ADM01">
+            </div>
+            <div class="field">
+              <label for="applicantName">申請人</label>
+              <input id="applicantName" required placeholder="姓名">
+            </div>
+            <div class="field">
+              <label for="applyDate">申請日期</label>
+              <input id="applyDate" type="date" required>
+            </div>
+            <div class="field">
+              <label for="needDate">須用日期</label>
+              <input id="needDate" type="date">
+            </div>
+            <div class="field">
+              <label for="acceptanceDate">驗收日期</label>
+              <input id="acceptanceDate" type="date">
+            </div>
+            <div class="field">
+              <label for="receivedDate">收貨日期</label>
+              <input id="receivedDate" type="date">
+            </div>
+            <div class="field">
+              <label for="taxType">稅別</label>
+              <select id="taxType">
+                <option value="含稅">含稅</option>
+                <option value="未稅">未稅</option>
+              </select>
+            </div>
+          </div>
+          <div class="checks" id="categoryChecks">
+            <label><input type="checkbox" value="維修器材">維修器材</label>
+            <label><input type="checkbox" value="事務性器具">事務性器具</label>
+            <label><input type="checkbox" value="消耗性">消耗性</label>
+            <label><input type="checkbox" value="材料類">材料類</label>
+            <label><input type="checkbox" value="雜項購置">雜項購置</label>
+            <label><input type="checkbox" value="房屋附屬設施">房屋附屬設施</label>
+            <label><input type="checkbox" value="費用">費用</label>
+            <label><input type="checkbox" value="固定資產">固定資產</label>
+            <label><input type="checkbox" value="修繕工程">修繕工程</label>
+            <label><input type="checkbox" value="研發器材">研發器材</label>
+          </div>
+        </section>
+
+        <section class="form-section">
+          <h2 class="section-label">材料 / 物品明細</h2>
+          <div class="items-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width:19%;">材料 / 物品名稱</th>
+                  <th style="width:14%;">規格</th>
+                  <th style="width:15%;">材料 / 物品編號</th>
+                  <th style="width:8%;">單位</th>
+                  <th style="width:10%;">申購數量</th>
+                  <th style="width:10%;">核准數量</th>
+                  <th style="width:10%;">單價</th>
+                  <th style="width:10%;">金額</th>
+                  <th style="width:4%;">刪</th>
+                </tr>
+              </thead>
+              <tbody id="itemsBody"></tbody>
+            </table>
+          </div>
+          <div class="item-actions">
+            <button class="ghost-btn" type="button" onclick="addItem()">新增一列</button>
+            <div class="total-box">合計 <span id="totalAmount">NT$ 0</span></div>
+          </div>
+        </section>
+
+        <section class="form-section">
+          <h2 class="section-label">採購與供應商資料</h2>
+          <div class="grid">
+            <div class="field">
+              <label for="purchaseMethod">採購方式</label>
+              <select id="purchaseMethod">
+                <option value="請購單位">請購單位</option>
+                <option value="使用單位">使用單位</option>
+                <option value="行政管理部單位">行政管理部單位</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="vendorName">公司名稱 / 廠商</label>
+              <input id="vendorName">
+            </div>
+            <div class="field">
+              <label for="vendorTaxId">統一編號</label>
+              <input id="vendorTaxId">
+            </div>
+            <div class="field">
+              <label for="contactPerson">聯絡人</label>
+              <input id="contactPerson">
+            </div>
+            <div class="field half">
+              <label for="vendorAddress">地址</label>
+              <input id="vendorAddress">
+            </div>
+            <div class="field">
+              <label for="phone">電話</label>
+              <input id="phone">
+            </div>
+            <div class="field">
+              <label for="mobile">行動</label>
+              <input id="mobile">
+            </div>
+            <div class="field">
+              <label for="fax">傳真</label>
+              <input id="fax">
+            </div>
+            <div class="field full">
+              <label>檢附資料</label>
+              <div class="checks" id="attachmentChecks" style="padding:0;">
+                <label><input type="checkbox" value="證照影本">證照影本</label>
+                <label><input type="checkbox" value="規格保固">規格保固</label>
+                <label><input type="checkbox" value="報關資料">報關資料</label>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="form-section">
+          <h2 class="section-label">付款與用途說明</h2>
+          <div class="grid">
+            <div class="field">
+              <label for="paymentType">交貨付款方式</label>
+              <select id="paymentType">
+                <option value="現金">現金</option>
+                <option value="按公司規定">按公司規定</option>
+                <option value="其他">其他</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="deliveryDate">預定交貨日</label>
+              <input id="deliveryDate" type="date">
+            </div>
+            <div class="field">
+              <label for="deliveryBatch">交貨方式</label>
+              <select id="deliveryBatch">
+                <option value="一次交貨">一次交貨</option>
+                <option value="分批交貨">分批交貨</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="buyingMode">採購型態</label>
+              <select id="buyingMode">
+                <option value="訂購">訂購</option>
+                <option value="現購">現購</option>
+                <option value="買賣合約書">買賣合約書</option>
+              </select>
+            </div>
+            <div class="field full">
+              <label for="purpose">用途說明</label>
+              <textarea id="purpose" required placeholder="請說明請購原因、使用情境或專案名稱"></textarea>
+            </div>
+            <div class="field full">
+              <label for="acceptanceNote">驗收說明 / 其他說明</label>
+              <textarea id="acceptanceNote" placeholder="可填寫庫存量、未到量、月用量或驗收備註"></textarea>
+            </div>
+          </div>
+        </section>
+
+        <section class="form-section">
+          <h2 class="section-label">照片附件</h2>
+          <div class="photo-upload">
+            <div class="upload-row">
+              <input id="photoInput" type="file" accept="image/*" capture="environment" multiple>
+              <button class="ghost-btn" type="button" onclick="document.getElementById('photoInput').click()">拍照 / 上傳照片</button>
+            </div>
+            <div class="hint" style="margin-top:0;">可拍攝發票、報價單、商品現況或相關附件。測試版會先存在瀏覽器，正式版建議上傳到公司雲端或後台儲存空間。</div>
+            <div id="photoPreview" class="photo-grid"></div>
+          </div>
+        </section>
+
+        <section class="form-section">
+          <h2 class="section-label">申請人簽名與簽核流程</h2>
+          <div class="signature-box">
+            <div class="signature-preview" id="signaturePreview">尚未簽名</div>
+            <div class="form-actions" style="justify-content:flex-start;">
+              <button class="primary-btn" type="button" onclick="openSignatureDialog()">手寫簽名</button>
+              <button class="ghost-btn" type="button" onclick="clearSignature()">清除簽名</button>
+            </div>
+          </div>
+          <div class="approval-flow">
+            <div class="approval-step">
+              <strong>1. 申請人送出</strong>
+              <span>基層使用者填寫表單並完成簽名。</span>
+            </div>
+            <div class="approval-step">
+              <strong>2. 單位主管簽核</strong>
+              <span>依部門代號分派給對應主管權限。</span>
+            </div>
+            <div class="approval-step">
+              <strong>3. 總經理簽核</strong>
+              <span>主管核准後送交總經理權限。</span>
+            </div>
+          </div>
+        </section>
+
+        <div class="form-actions">
+          <button class="ghost-btn" type="button" onclick="resetForm()">清空 / 新增</button>
+          <button class="primary-btn" type="submit">送出請購單</button>
+        </div>
+      </form>
+    </section>
+
+    <section id="historyView" class="panel hidden">
+      <div class="panel-head">
+        <div class="panel-title">
+          <h2>我的過往請購單</h2>
+          <p>只會顯示目前登入員工送出的資料。24 小時內可自行修改。</p>
+        </div>
+      </div>
+      <div class="content">
+        <div class="notice">正式上線後，這裡可改為讀取 Google Sheet、Notion 或內部資料庫的紀錄。</div>
+        <div id="recordsList" class="records-list"></div>
+      </div>
+    </section>
+
+    <section id="adminView" class="panel hidden">
+      <div class="panel-head">
+        <div class="panel-title">
+          <h2>權限管理</h2>
+          <p>A001 最高權限可指定單位主管與總經理。正式上線後建議改由後台資料庫控管。</p>
+        </div>
+        <span class="status-pill">最高權限</span>
+      </div>
+      <div class="content">
+        <div class="admin-grid">
+          <section class="admin-card">
+            <h3>新增 / 更新人員權限</h3>
+            <div class="grid" style="padding:0;grid-template-columns:1fr 1fr;">
+              <div class="field">
+                <label for="roleEmployeeId">員工編號</label>
+                <input id="roleEmployeeId" placeholder="例如 B002">
+              </div>
+              <div class="field">
+                <label for="roleEmail">公司信箱</label>
+                <input id="roleEmail" type="email" placeholder="user@company.com">
+              </div>
+              <div class="field">
+                <label for="roleDepartment">部門代號</label>
+                <input id="roleDepartment" placeholder="例如 ADM01">
+              </div>
+              <div class="field">
+                <label for="roleName">姓名</label>
+                <input id="roleName" placeholder="可選填">
+              </div>
+              <div class="field full">
+                <label for="roleType">權限</label>
+                <select id="roleType">
+                  <option value="user">一般使用者</option>
+                  <option value="unitManager">單位主管</option>
+                  <option value="generalManager">總經理</option>
+                  <option value="admin">最高權限管理者</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-actions" style="justify-content:flex-start;margin-top:12px;">
+              <button class="primary-btn" type="button" onclick="saveUserRole()">儲存權限</button>
+            </div>
+          </section>
+
+          <section class="admin-card">
+            <h3>簽核與退回通知建議</h3>
+            <p class="hint" style="margin-top:0;">使用者送出後，系統依部門代號找到單位主管；主管核准後送總經理。若退回或註銷，後台可同步更新狀態並寄信到註冊公司信箱。</p>
+            <div class="role-list">
+              <div class="role-row"><strong>A001</strong><span>預設最高權限管理者</span></div>
+              <div class="role-row"><strong>通知信箱</strong><span>來自首次登入或管理者設定</span></div>
+            </div>
+          </section>
+        </div>
+        <div id="usersList" class="role-list"></div>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="messageDialog">
+    <div class="dialog-body">
+      <h3 id="dialogTitle">提示</h3>
+      <p id="dialogMessage"></p>
+      <div class="form-actions">
+        <button class="primary-btn" type="button" onclick="closeDialog()">知道了</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="signatureDialog" class="signature-dialog">
+    <div class="dialog-body">
+      <h3>手寫簽名</h3>
+      <p>可用滑鼠或手機手指簽名，完成後按下確認。</p>
+      <div class="signature-pad-wrap">
+        <canvas id="signaturePad"></canvas>
+      </div>
+      <div class="form-actions" style="margin-top:14px;">
+        <button class="ghost-btn" type="button" onclick="clearSignaturePad()">重簽</button>
+        <button class="ghost-btn" type="button" onclick="closeSignatureDialog()">取消</button>
+        <button class="primary-btn" type="button" onclick="saveSignature()">確認簽名</button>
+      </div>
+    </div>
+  </dialog>
+
+  <script>
+    const STORAGE_KEY = "company_purchase_requests_v1";
+    const SESSION_KEY = "company_purchase_login_v1";
+    const USERS_KEY = "company_purchase_users_v1";
+    const EDIT_LIMIT_HOURS = 24;
+    let uploadedPhotos = [];
+    let applicantSignature = "";
+    let signaturePadReady = false;
+    let isSigning = false;
+
+    const formFields = [
+      "requestType", "departmentCode", "applicantName", "applyDate", "needDate",
+      "acceptanceDate", "receivedDate", "taxType", "purchaseMethod", "vendorName",
+      "vendorTaxId", "contactPerson", "vendorAddress", "phone", "mobile", "fax",
+      "paymentType", "deliveryDate", "deliveryBatch", "buyingMode", "purpose",
+      "acceptanceNote"
+    ];
+
+    const itemColumns = ["name", "spec", "code", "unit", "qty", "approvedQty", "price", "amount"];
+
+    function todayString() {
+      const now = new Date();
+      return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    }
+
+    function getCurrentUser() {
+      return JSON.parse(localStorage.getItem(SESSION_KEY) || "null");
+    }
+
+    function getUsers() {
+      const users = JSON.parse(localStorage.getItem(USERS_KEY) || "[]");
+      if (!users.some((user) => user.employeeId === "A001")) {
+        users.unshift({
+          employeeId: "A001",
+          name: "系統管理者",
+          email: "",
+          departmentCode: "ADMIN",
+          role: "admin",
+          createdAt: new Date().toISOString()
+        });
+        saveUsers(users);
+      }
+      return users;
+    }
+
+    function saveUsers(users) {
+      localStorage.setItem(USERS_KEY, JSON.stringify(users));
+    }
+
+    function findUser(employeeId) {
+      return getUsers().find((user) => user.employeeId === employeeId);
+    }
+
+    function getRecords() {
+      return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+    }
+
+    function saveRecords(records) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+    }
+
+    function formatCurrency(value) {
+      const number = Number(value) || 0;
+      return `NT$ ${number.toLocaleString("zh-TW")}`;
+    }
+
+    function formatDateTime(value) {
+      return new Date(value).toLocaleString("zh-TW", { hour12: false });
+    }
+
+    function canEdit(record) {
+      const diffHours = (Date.now() - new Date(record.createdAt).getTime()) / 36e5;
+      return diffHours <= EDIT_LIMIT_HOURS;
+    }
+
+    function showDialog(title, message) {
+      document.getElementById("dialogTitle").textContent = title;
+      document.getElementById("dialogMessage").textContent = message;
+      document.getElementById("messageDialog").showModal();
+    }
+
+    function closeDialog() {
+      document.getElementById("messageDialog").close();
+    }
+
+    document.getElementById("loginForm").addEventListener("submit", (event) => {
+      event.preventDefault();
+      const employeeId = document.getElementById("employeeId").value.trim();
+      const password = document.getElementById("password").value;
+      const companyEmail = document.getElementById("companyEmail").value.trim();
+
+      if (password !== "demo") {
+        showDialog("登入失敗", "測試階段密碼請輸入 demo。正式版可改接公司原本配發密碼。");
+        return;
+      }
+
+      const users = getUsers();
+      let profile = users.find((user) => user.employeeId === employeeId);
+      if (!profile) {
+        if (!companyEmail) {
+          showDialog("第一次登入需填寫公司信箱", "請先輸入公司信箱，之後簽核退回或註銷通知會寄到這個信箱。");
+          return;
+        }
+        profile = {
+          employeeId,
+          name: "",
+          email: companyEmail,
+          departmentCode: "",
+          role: employeeId === "A001" ? "admin" : "user",
+          createdAt: new Date().toISOString()
+        };
+        users.push(profile);
+      } else if (companyEmail) {
+        profile.email = companyEmail;
+      } else if (!profile.email && employeeId !== "A001") {
+        showDialog("請補公司信箱", "此帳號尚未保存公司信箱，請輸入後再登入。");
+        return;
+      }
+
+      saveUsers(users);
+      localStorage.setItem(SESSION_KEY, JSON.stringify({ ...profile, loginAt: new Date().toISOString() }));
+      bootApp();
+    });
+
+    document.getElementById("requestForm").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const user = getCurrentUser();
+      const payload = collectFormData();
+      const records = getRecords();
+      const existingIndex = records.findIndex((record) => record.id === payload.id);
+
+      if (existingIndex >= 0 && !canEdit(records[existingIndex])) {
+        showDialog("已超過可修改時間", "此請購單已超過 24 小時，如需修改請聯繫 IT 或相關工作人員。");
+        return;
+      }
+
+      if (!payload.applicantSignature) {
+        showDialog("尚未簽名", "請先完成申請人手寫簽名後再送出。");
+        return;
+      }
+
+      payload.employeeId = user.employeeId;
+      payload.employeeEmail = user.email || "";
+      payload.updatedAt = new Date().toISOString();
+
+      if (existingIndex >= 0) {
+        payload.createdAt = records[existingIndex].createdAt;
+        payload.approvalStatus = records[existingIndex].approvalStatus || createApprovalStatus(payload);
+        records[existingIndex] = payload;
+      } else {
+        payload.id = crypto.randomUUID ? crypto.randomUUID() : `REQ-${Date.now()}`;
+        payload.createdAt = new Date().toISOString();
+        payload.approvalStatus = createApprovalStatus(payload);
+        records.unshift(payload);
+      }
+
+      try {
+        await syncToExternalDatabase(payload);
+      } catch (error) {
+        showDialog("同步失敗", error.message || "無法寫入 Google Sheet / Notion，請檢查後台 API 設定。");
+        return;
+      }
+
+      saveRecords(records);
+      showDialog("送出完成", "請購單已儲存在本機測試資料庫。後續接上 Google Sheet 或 Notion 後，可同步寫入後台彙整。");
+      resetForm();
+      renderHistory();
+    });
+
+    document.getElementById("photoInput").addEventListener("change", async (event) => {
+      const files = Array.from(event.target.files || []);
+      for (const file of files) {
+        if (!file.type.startsWith("image/")) continue;
+        uploadedPhotos.push({
+          id: crypto.randomUUID ? crypto.randomUUID() : `PHOTO-${Date.now()}-${Math.random()}`,
+          name: file.name || "camera-photo.jpg",
+          type: file.type,
+          dataUrl: await readFileAsDataUrl(file),
+          addedAt: new Date().toISOString()
+        });
+      }
+      event.target.value = "";
+      renderPhotos();
+    });
+
+    function bootApp() {
+      const user = getCurrentUser();
+      document.getElementById("loginScreen").classList.toggle("hidden", Boolean(user));
+      document.getElementById("app").classList.toggle("hidden", !user);
+
+      if (!user) return;
+
+      document.getElementById("currentUser").textContent = `登入員工：${user.employeeId} | ${roleLabel(user.role)}`;
+      document.getElementById("adminTab").classList.toggle("hidden", user.role !== "admin");
+      if (!document.getElementById("itemsBody").children.length) addItem();
+      if (!document.getElementById("applyDate").value) document.getElementById("applyDate").value = todayString();
+      renderHistory();
+      renderUsers();
+    }
+
+    function logout() {
+      localStorage.removeItem(SESSION_KEY);
+      location.reload();
+    }
+
+    function showView(view) {
+      document.getElementById("formView").classList.toggle("hidden", view !== "form");
+      document.getElementById("historyView").classList.toggle("hidden", view !== "history");
+      document.getElementById("adminView").classList.toggle("hidden", view !== "admin");
+      document.getElementById("newTab").classList.toggle("active", view === "form");
+      document.getElementById("historyTab").classList.toggle("active", view === "history");
+      document.getElementById("adminTab").classList.toggle("active", view === "admin");
+      if (view === "history") renderHistory();
+      if (view === "admin") renderUsers();
+    }
+
+    function addItem(item = {}) {
+      const tbody = document.getElementById("itemsBody");
+      const row = document.createElement("tr");
+
+      itemColumns.forEach((column) => {
+        const cell = document.createElement("td");
+        const input = document.createElement("input");
+        input.dataset.column = column;
+        input.value = item[column] || "";
+
+        if (["qty", "approvedQty", "price", "amount"].includes(column)) {
+          input.type = "number";
+          input.min = "0";
+          input.className = "number-cell";
+        }
+
+        if (column === "amount") input.readOnly = true;
+        if (["qty", "price"].includes(column)) input.addEventListener("input", () => updateRowAmount(row));
+
+        cell.appendChild(input);
+        row.appendChild(cell);
+      });
+
+      const actionCell = document.createElement("td");
+      const deleteButton = document.createElement("button");
+      deleteButton.type = "button";
+      deleteButton.className = "icon-btn";
+      deleteButton.textContent = "x";
+      deleteButton.title = "刪除此列";
+      deleteButton.onclick = () => deleteItem(row);
+      actionCell.appendChild(deleteButton);
+      row.appendChild(actionCell);
+      tbody.appendChild(row);
+      updateRowAmount(row);
+    }
+
+    function readFileAsDataUrl(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function renderPhotos() {
+      const preview = document.getElementById("photoPreview");
+      if (!uploadedPhotos.length) {
+        preview.innerHTML = "";
+        return;
+      }
+
+      preview.innerHTML = uploadedPhotos.map((photo) => `
+        <article class="photo-card">
+          <img src="${photo.dataUrl}" alt="${escapeHtml(photo.name)}">
+          <footer>
+            <span>${escapeHtml(photo.name)}</span>
+            <button class="danger-btn" type="button" onclick="removePhoto('${photo.id}')">刪除</button>
+          </footer>
+        </article>
+      `).join("");
+    }
+
+    function removePhoto(id) {
+      uploadedPhotos = uploadedPhotos.filter((photo) => photo.id !== id);
+      renderPhotos();
+    }
+
+    function renderSignature() {
+      const preview = document.getElementById("signaturePreview");
+      if (!applicantSignature) {
+        preview.textContent = "尚未簽名";
+        return;
+      }
+      preview.innerHTML = `<img src="${applicantSignature}" alt="申請人簽名">`;
+    }
+
+    function openSignatureDialog() {
+      document.getElementById("signatureDialog").showModal();
+      setupSignaturePad();
+    }
+
+    function closeSignatureDialog() {
+      document.getElementById("signatureDialog").close();
+    }
+
+    function setupSignaturePad() {
+      const canvas = document.getElementById("signaturePad");
+      const rect = canvas.getBoundingClientRect();
+      const scale = window.devicePixelRatio || 1;
+      canvas.width = Math.floor(rect.width * scale);
+      canvas.height = Math.floor(rect.height * scale);
+      const ctx = canvas.getContext("2d");
+      ctx.setTransform(scale, 0, 0, scale, 0, 0);
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.lineWidth = 2.4;
+      ctx.strokeStyle = "#172033";
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, rect.width, rect.height);
+
+      if (applicantSignature) {
+        const image = new Image();
+        image.onload = () => ctx.drawImage(image, 0, 0, rect.width, rect.height);
+        image.src = applicantSignature;
+      }
+
+      if (signaturePadReady) return;
+      signaturePadReady = true;
+
+      canvas.addEventListener("pointerdown", (event) => {
+        isSigning = true;
+        canvas.setPointerCapture(event.pointerId);
+        const point = signaturePoint(event, canvas);
+        ctx.beginPath();
+        ctx.moveTo(point.x, point.y);
+      });
+
+      canvas.addEventListener("pointermove", (event) => {
+        if (!isSigning) return;
+        const point = signaturePoint(event, canvas);
+        ctx.lineTo(point.x, point.y);
+        ctx.stroke();
+      });
+
+      canvas.addEventListener("pointerup", () => {
+        isSigning = false;
+      });
+
+      canvas.addEventListener("pointercancel", () => {
+        isSigning = false;
+      });
+    }
+
+    function signaturePoint(event, canvas) {
+      const rect = canvas.getBoundingClientRect();
+      return {
+        x: event.clientX - rect.left,
+        y: event.clientY - rect.top
+      };
+    }
+
+    function clearSignaturePad() {
+      const canvas = document.getElementById("signaturePad");
+      const rect = canvas.getBoundingClientRect();
+      const ctx = canvas.getContext("2d");
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, rect.width, rect.height);
+    }
+
+    function saveSignature() {
+      const canvas = document.getElementById("signaturePad");
+      applicantSignature = canvas.toDataURL("image/png");
+      renderSignature();
+      closeSignatureDialog();
+    }
+
+    function clearSignature() {
+      applicantSignature = "";
+      renderSignature();
+    }
+
+    function deleteItem(row) {
+      const tbody = document.getElementById("itemsBody");
+      if (tbody.children.length === 1) {
+        showDialog("無法刪除", "請購明細至少需要保留一列。");
+        return;
+      }
+      row.remove();
+      updateTotal();
+    }
+
+    function updateRowAmount(row) {
+      const qty = Number(row.querySelector('[data-column="qty"]').value) || 0;
+      const price = Number(row.querySelector('[data-column="price"]').value) || 0;
+      row.querySelector('[data-column="amount"]').value = qty * price || "";
+      updateTotal();
+    }
+
+    function updateTotal() {
+      const total = getItems().reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+      document.getElementById("totalAmount").textContent = formatCurrency(total);
+    }
+
+    function checkedValues(containerId) {
+      return Array.from(document.querySelectorAll(`#${containerId} input:checked`)).map((input) => input.value);
+    }
+
+    function setCheckedValues(containerId, values) {
+      document.querySelectorAll(`#${containerId} input`).forEach((input) => {
+        input.checked = values.includes(input.value);
+      });
+    }
+
+    function getItems() {
+      return Array.from(document.querySelectorAll("#itemsBody tr")).map((row) => {
+        const item = {};
+        row.querySelectorAll("input[data-column]").forEach((input) => {
+          item[input.dataset.column] = input.value;
+        });
+        return item;
+      }).filter((item) => Object.values(item).some(Boolean));
+    }
+
+    function collectFormData() {
+      const data = {
+        id: document.getElementById("recordId").value,
+        createdAt: document.getElementById("createdAt").value,
+        categories: checkedValues("categoryChecks"),
+        attachments: checkedValues("attachmentChecks"),
+        photos: uploadedPhotos,
+        applicantSignature,
+        items: getItems(),
+        totalAmount: getItems().reduce((sum, item) => sum + (Number(item.amount) || 0), 0)
+      };
+
+      formFields.forEach((field) => {
+        data[field] = document.getElementById(field).value.trim();
+      });
+
+      return data;
+    }
+
+    function resetForm() {
+      document.getElementById("requestForm").reset();
+      document.getElementById("recordId").value = "";
+      document.getElementById("createdAt").value = "";
+      document.getElementById("itemsBody").innerHTML = "";
+      uploadedPhotos = [];
+      applicantSignature = "";
+      document.getElementById("applyDate").value = todayString();
+      document.getElementById("formStatus").textContent = "新增表單";
+      addItem();
+      renderPhotos();
+      renderSignature();
+      updateTotal();
+      showView("form");
+    }
+
+    function loadRecord(id) {
+      const record = getRecords().find((entry) => entry.id === id);
+      if (!record) return;
+
+      if (!canEdit(record)) {
+        showDialog("已超過可修改時間", "此請購單已超過 24 小時，如需修改請聯繫 IT 或相關工作人員。");
+        return;
+      }
+
+      document.getElementById("recordId").value = record.id;
+      document.getElementById("createdAt").value = record.createdAt;
+      formFields.forEach((field) => {
+        document.getElementById(field).value = record[field] || "";
+      });
+      setCheckedValues("categoryChecks", record.categories || []);
+      setCheckedValues("attachmentChecks", record.attachments || []);
+      uploadedPhotos = record.photos || [];
+      applicantSignature = record.applicantSignature || "";
+      document.getElementById("itemsBody").innerHTML = "";
+      (record.items && record.items.length ? record.items : [{}]).forEach(addItem);
+      document.getElementById("formStatus").textContent = `編輯中：${record.id.slice(0, 8)}`;
+      renderPhotos();
+      renderSignature();
+      updateTotal();
+      showView("form");
+    }
+
+    function createApprovalStatus(record) {
+      return {
+        currentStep: "unitManager",
+        label: "待單位主管簽核",
+        route: [
+          {
+            step: "applicant",
+            label: "申請人",
+            actor: record.applicantName || record.employeeId,
+            status: "signed",
+            signedAt: new Date().toISOString()
+          },
+          {
+            step: "unitManager",
+            label: "單位主管",
+            actor: resolveUnitManager(record.departmentCode),
+            status: "pending",
+            signedAt: ""
+          },
+          {
+            step: "generalManager",
+            label: "總經理",
+            actor: resolveGeneralManager(),
+            status: "waiting",
+            signedAt: ""
+          }
+        ]
+      };
+    }
+
+    function resolveUnitManager(departmentCode) {
+      const code = String(departmentCode || "").trim().toUpperCase();
+      const manager = getUsers().find((user) => user.role === "unitManager" && String(user.departmentCode || "").toUpperCase() === code);
+      if (manager) return `${manager.name || manager.employeeId} (${manager.employeeId})`;
+      return "依部門代號分派主管";
+    }
+
+    function resolveGeneralManager() {
+      const manager = getUsers().find((user) => user.role === "generalManager");
+      if (manager) return `${manager.name || manager.employeeId} (${manager.employeeId})`;
+      return "總經理權限";
+    }
+
+    function roleLabel(role) {
+      return {
+        user: "一般使用者",
+        unitManager: "單位主管",
+        generalManager: "總經理",
+        admin: "最高權限"
+      }[role] || "一般使用者";
+    }
+
+    function saveUserRole() {
+      const current = getCurrentUser();
+      if (current.role !== "admin") {
+        showDialog("權限不足", "只有最高權限管理者可以調整簽核角色。");
+        return;
+      }
+
+      const employeeId = document.getElementById("roleEmployeeId").value.trim();
+      if (!employeeId) {
+        showDialog("缺少員工編號", "請輸入要設定的人員員工編號。");
+        return;
+      }
+
+      const users = getUsers();
+      let profile = users.find((user) => user.employeeId === employeeId);
+      if (!profile) {
+        profile = { employeeId, createdAt: new Date().toISOString() };
+        users.push(profile);
+      }
+
+      profile.email = document.getElementById("roleEmail").value.trim() || profile.email || "";
+      profile.departmentCode = document.getElementById("roleDepartment").value.trim().toUpperCase();
+      profile.name = document.getElementById("roleName").value.trim() || profile.name || "";
+      profile.role = document.getElementById("roleType").value;
+      profile.updatedAt = new Date().toISOString();
+
+      saveUsers(users);
+      renderUsers();
+      showDialog("權限已儲存", `${employeeId} 已設定為 ${roleLabel(profile.role)}。`);
+    }
+
+    function renderUsers() {
+      const list = document.getElementById("usersList");
+      if (!list) return;
+
+      const current = getCurrentUser();
+      if (!current || current.role !== "admin") {
+        list.innerHTML = "";
+        return;
+      }
+
+      const users = getUsers();
+      list.innerHTML = users.map((user) => `
+        <article class="role-row">
+          <div>
+            <strong>${escapeHtml(user.employeeId)} <span class="approval-badge">${roleLabel(user.role)}</span></strong>
+            <span>${escapeHtml(user.name || "未填姓名")} | ${escapeHtml(user.departmentCode || "未設定部門")} | ${escapeHtml(user.email || "未設定信箱")}</span>
+          </div>
+          <button class="ghost-btn" type="button" onclick="fillRoleForm('${escapeHtml(user.employeeId)}')">編輯</button>
+        </article>
+      `).join("");
+    }
+
+    function fillRoleForm(employeeId) {
+      const user = findUser(employeeId);
+      if (!user) return;
+      document.getElementById("roleEmployeeId").value = user.employeeId;
+      document.getElementById("roleEmail").value = user.email || "";
+      document.getElementById("roleDepartment").value = user.departmentCode || "";
+      document.getElementById("roleName").value = user.name || "";
+      document.getElementById("roleType").value = user.role || "user";
+    }
+
+    function renderHistory() {
+      const user = getCurrentUser();
+      const list = document.getElementById("recordsList");
+      const records = getRecords().filter((record) => record.employeeId === user.employeeId);
+
+      if (!records.length) {
+        list.innerHTML = "<div class='notice'>目前尚無請購紀錄。</div>";
+        return;
+      }
+
+      list.innerHTML = records.map((record) => {
+        const editable = canEdit(record);
+        const title = record.vendorName || record.items?.[0]?.name || "未命名請購單";
+        const statusLabel = record.approvalStatus?.label || "待單位主管簽核";
+        const button = editable
+          ? `<button class="primary-btn" type="button" onclick="loadRecord('${record.id}')">修改</button>`
+          : `<button class="ghost-btn" type="button" onclick="showDialog('已超過可修改時間', '此請購單已超過 24 小時，如需修改請聯繫 IT 或相關工作人員。')">聯繫 IT</button>`;
+
+        return `
+          <article class="record-row">
+            <div><strong>${escapeHtml(title)}</strong><span>單號：${record.id}</span></div>
+            <div><strong>${formatCurrency(record.totalAmount)}</strong><span>申請日期：${record.applyDate || "-"}</span></div>
+            <div><strong>${escapeHtml(statusLabel)}</strong><span>${editable ? "24 小時內可修改" : "已鎖定，請聯繫 IT"}</span></div>
+            <div class="record-actions">${button}</div>
+          </article>
+        `;
+      }).join("");
+    }
+
+    function escapeHtml(value) {
+      return String(value || "").replace(/[&<>"']/g, (char) => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#039;"
+      }[char]));
+    }
+
+    async function syncToExternalDatabase(payload) {
+      const response = await fetch("/api/submit-request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.ok) {
+        throw new Error(result.error || "同步 Google Sheet / Notion 失敗");
+      }
+
+      return result;
+
+      console.log("Ready to sync external database:", payload);
+
+      /*
+        Google Sheet 串接方向：
+        1. 建立 Google Apps Script Web App。
+        2. 將下方 fetch URL 換成 Web App URL。
+        3. Apps Script 端接收 JSON 後 appendRow 到試算表。
+
+        return fetch("https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec", {
+          method: "POST",
+          mode: "no-cors",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+
+        Notion 串接方向：
+        正式版建議透過公司後端呼叫 Notion API，不要把 Notion token 放在前端 HTML。
+      */
+    }
+
+    bootApp();
+  </script>
+</body>
+</html>

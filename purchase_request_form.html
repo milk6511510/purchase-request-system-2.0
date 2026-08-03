@@ -747,7 +747,7 @@
         </div>
         <button class="primary-btn" type="submit" style="width:100%;margin-top:18px;">登入</button>
       </form>
-      <div class="hint">第一次登入會建立註冊資料並保存公司信箱。測試密碼為 demo；A001 預設為最高權限管理者。</div>
+      <div class="hint">預覽版會先在本機保存登入資料。第一次登入會建立註冊資料並保存公司信箱；正式版帳號資料由 Google Sheet 的「使用者權限」分頁管理。</div>
     </section>
   </main>
 
@@ -755,7 +755,7 @@
     <header class="topbar">
       <div class="brand-title">
         <strong>股份有限公司 請購單</strong>
-        <span>電子表單系統 | 可串接 Google Sheet / Notion 後台</span>
+        <span>電子表單系統 | 資料同步至 Google Sheet 後台</span>
       </div>
       <div class="user-box">
         <span id="currentUser"></span>
@@ -787,7 +787,7 @@
           <div class="grid">
             <div class="field">
               <label for="requestType">申請類型</label>
-              <select id="requestType" required>
+              <select id="requestType">
                 <option value="一般">一般</option>
                 <option value="急件">急件</option>
               </select>
@@ -946,7 +946,7 @@
             </div>
             <div class="field full">
               <label for="purpose">用途說明</label>
-              <textarea id="purpose" required placeholder="請說明請購原因、使用情境或專案名稱"></textarea>
+              <textarea id="purpose" placeholder="可說明請購原因、使用情境或專案名稱"></textarea>
             </div>
             <div class="field full">
               <label for="acceptanceNote">驗收說明 / 其他說明</label>
@@ -1007,7 +1007,7 @@
         </div>
       </div>
       <div class="content">
-        <div class="notice">正式上線後，這裡可改為讀取 Google Sheet、Notion 或內部資料庫的紀錄。</div>
+        <div class="notice">送出資料會同步至 Google Sheet；目前預覽版的過往清單先從本機暫存資料讀取。</div>
         <div id="recordsList" class="records-list"></div>
       </div>
     </section>
@@ -1016,7 +1016,7 @@
       <div class="panel-head">
         <div class="panel-title">
           <h2>權限管理</h2>
-          <p>A001 最高權限可指定單位主管與總經理。正式上線後建議改由後台資料庫控管。</p>
+          <p>預覽版帳號與權限先暫存在本機；正式上線後由後端 API 讀寫 Google Sheet 的「使用者權限」分頁，A001 最高權限才能調整角色。</p>
         </div>
         <span class="status-pill">最高權限</span>
       </div>
@@ -1254,12 +1254,12 @@
       try {
         await syncToExternalDatabase(payload);
       } catch (error) {
-        showDialog("同步失敗", error.message || "無法寫入 Google Sheet / Notion，請檢查後台 API 設定。");
+        showDialog("同步失敗", error.message || "無法寫入 Google Sheet，請檢查後台 API 設定。");
         return;
       }
 
       saveRecords(records);
-      showDialog("送出完成", "請購單已儲存在本機測試資料庫。後續接上 Google Sheet 或 Notion 後，可同步寫入後台彙整。");
+      showDialog("送出完成", "請購單已送出，資料已交由 Google Sheet 後台彙整。");
       resetForm();
       renderHistory();
     });
@@ -1740,29 +1740,11 @@
 
       const result = await response.json().catch(() => ({}));
       if (!response.ok || !result.ok) {
-        throw new Error(result.error || "同步 Google Sheet / Notion 失敗");
+        throw new Error(result.error || "同步 Google Sheet 失敗");
       }
 
       return result;
 
-      console.log("Ready to sync external database:", payload);
-
-      /*
-        Google Sheet 串接方向：
-        1. 建立 Google Apps Script Web App。
-        2. 將下方 fetch URL 換成 Web App URL。
-        3. Apps Script 端接收 JSON 後 appendRow 到試算表。
-
-        return fetch("https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec", {
-          method: "POST",
-          mode: "no-cors",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
-        });
-
-        Notion 串接方向：
-        正式版建議透過公司後端呼叫 Notion API，不要把 Notion token 放在前端 HTML。
-      */
     }
 
     bootApp();

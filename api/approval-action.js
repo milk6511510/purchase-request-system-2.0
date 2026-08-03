@@ -1,4 +1,4 @@
-const { appendToGoogleSheet, createNotionPage, sendMail } = require("./integrations");
+const { appendToGoogleSheet, sendMail } = require("./integrations");
 
 function json(res, statusCode, data) {
   res.statusCode = statusCode;
@@ -52,8 +52,6 @@ module.exports = async function handler(req, res) {
       }
     };
 
-    const notionPage = await createNotionPage(actionPayload);
-    actionPayload.notionPageUrl = notionPage.url || request.notionPageUrl || "";
     await appendToGoogleSheet(actionPayload);
 
     if (action === "reject" || action === "cancel") {
@@ -70,7 +68,7 @@ module.exports = async function handler(req, res) {
       });
     }
 
-    json(res, 200, { ok: true, id: request.id, status: label, notionPageUrl: actionPayload.notionPageUrl });
+    json(res, 200, { ok: true, id: request.id, status: label });
   } catch (error) {
     console.error(error);
     json(res, 500, { ok: false, error: error.message || "Internal server error" });

@@ -1,4 +1,4 @@
-const { appendToGoogleSheet, createNotionPage, sendMail } = require("./integrations");
+const { appendToGoogleSheet, sendMail } = require("./integrations");
 
 function json(res, statusCode, data) {
   res.statusCode = statusCode;
@@ -34,9 +34,6 @@ module.exports = async function handler(req, res) {
 
     payload.syncedAt = new Date().toISOString();
 
-    const notionPage = await createNotionPage(payload);
-    payload.notionPageUrl = notionPage.url || "";
-
     await appendToGoogleSheet(payload);
     await sendMail({
       to: payload.employeeEmail,
@@ -45,7 +42,6 @@ module.exports = async function handler(req, res) {
         <p>Your purchase request has been submitted and entered the approval workflow.</p>
         <p><strong>Request ID:</strong> ${payload.id}</p>
         <p><strong>Status:</strong> ${payload.approvalStatus?.label || "Pending unit manager"}</p>
-        ${payload.notionPageUrl ? `<p><strong>Notion:</strong> <a href="${payload.notionPageUrl}">${payload.notionPageUrl}</a></p>` : ""}
       `
     });
 
@@ -53,7 +49,6 @@ module.exports = async function handler(req, res) {
       ok: true,
       id: payload.id,
       status: payload.approvalStatus?.label || "Pending unit manager",
-      notionPageUrl: payload.notionPageUrl
     });
   } catch (error) {
     console.error(error);

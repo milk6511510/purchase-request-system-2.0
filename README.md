@@ -19,9 +19,7 @@
 
 ## 後台資料庫
 
-Google Sheet 已建立：
-
-https://docs.google.com/spreadsheets/d/1QN3PsmJXxpBUTVKmMhUi2jaJxfp1cUbZqdz8y5vi6oI
+Google Sheet 已建立，正式部署時請由管理員將實際試算表 ID 設定到 Vercel 的 Environment Variables。
 
 分頁：
 
@@ -36,19 +34,18 @@ https://docs.google.com/spreadsheets/d/1QN3PsmJXxpBUTVKmMhUi2jaJxfp1cUbZqdz8y5vi
 請在 Vercel 專案後台設定，不能提交到 GitHub。
 
 ```env
-GOOGLE_SHEET_ID=1QN3PsmJXxpBUTVKmMhUi2jaJxfp1cUbZqdz8y5vi6oI
+GOOGLE_SHEET_ID=
 GOOGLE_SERVICE_ACCOUNT_EMAIL=
 GOOGLE_PRIVATE_KEY=
-NOTION_TOKEN=
-NOTION_DATABASE_ID=
 RESEND_API_KEY=
 MAIL_FROM=請購單系統 <noreply@example.com>
 ```
 
 ## 正式資料保存建議
 
-- 表單主資料寫入 Google Sheet 與 Notion。
+- 表單主資料、品項明細與簽核紀錄寫入 Google Sheet。
+- 帳號與簽核角色寫入 Google Sheet 的 `使用者權限` 分頁。
+- 目前 HTML 預覽版的登入、權限與過往清單仍使用瀏覽器 `localStorage`；正式上線需再由後端 API 讀寫上述分頁，並加上伺服器端登入驗證。
 - 照片與簽名建議上傳 Google Drive 後，在表格內保存檔案連結。
 - 通知信可使用 Resend、Gmail API 或公司 SMTP。
-- API key、Notion token、Google private key 都只能放在 Vercel Environment Variables。
-
+- API key 與 Google private key 都只能放在 Vercel Environment Variables。

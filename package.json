@@ -5,7 +5,7 @@
   "type": "commonjs",
   "scripts": {
     "dev": "vercel dev",
-    "check": "node -c api/submit-request.js && node -c api/approval-action.js"
+    "check": "node -c api/submit-request.js && node -c api/approval-action.js && node -c api/auth.js && node -c api/users.js && node -c api/requests.js && node -c api/_lib/http.js && node -c api/_lib/security.js && node -c api/_lib/sheets.js && node -c api/_lib/domain.js"
   },
   "dependencies": {
     "googleapis": "^140.0.1",

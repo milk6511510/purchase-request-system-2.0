@@ -739,15 +739,20 @@
         </div>
         <div class="field" style="margin-top:12px;">
           <label for="password">登入密碼</label>
-          <input id="password" type="password" autocomplete="current-password" required placeholder="預設 demo">
+          <input id="password" type="password" autocomplete="current-password" required placeholder="至少 8 個字元">
+        </div>
+        <div class="field" style="margin-top:12px;">
+          <label for="accountName">姓名（首次註冊填寫）</label>
+          <input id="accountName" autocomplete="name" placeholder="例如 王小明">
         </div>
         <div class="field" style="margin-top:12px;">
           <label for="companyEmail">公司信箱</label>
-          <input id="companyEmail" type="email" autocomplete="email" placeholder="第一次登入必填，例如 name@company.com">
+          <input id="companyEmail" type="email" autocomplete="email" placeholder="第一次註冊必填，例如 name@company.com">
         </div>
         <button class="primary-btn" type="submit" style="width:100%;margin-top:18px;">登入</button>
+        <button id="registerButton" class="ghost-btn" type="button" style="width:100%;margin-top:10px;">首次註冊</button>
       </form>
-      <div class="hint">預覽版會先在本機保存登入資料。第一次登入會建立註冊資料並保存公司信箱；正式版帳號資料由 Google Sheet 的「使用者權限」分頁管理。</div>
+      <div class="hint">帳號、權限與登入 session 由後端管理；第一次註冊需使用公司信箱，是否立即啟用由系統設定或最高權限管理者決定。</div>
     </section>
   </main>
 
@@ -766,6 +771,7 @@
     <nav class="tabs" aria-label="主要功能">
       <button id="newTab" class="tab-btn active" type="button" onclick="showView('form')">新增請購單</button>
       <button id="historyTab" class="tab-btn" type="button" onclick="showView('history')">我的過往請購單</button>
+      <button id="approvalTab" class="tab-btn hidden" type="button" onclick="showView('approvals')">待我簽核</button>
       <button id="adminTab" class="tab-btn hidden" type="button" onclick="showView('admin')">權限管理</button>
     </nav>
 
@@ -1007,8 +1013,20 @@
         </div>
       </div>
       <div class="content">
-        <div class="notice">送出資料會同步至 Google Sheet；目前預覽版的過往清單先從本機暫存資料讀取。</div>
+        <div class="notice">過往請購單由後端依登入者權限讀取；一般員工只會看到自己送出的資料。</div>
         <div id="recordsList" class="records-list"></div>
+      </div>
+    </section>
+
+    <section id="approvalView" class="panel hidden">
+      <div class="panel-head">
+        <div class="panel-title">
+          <h2>待我簽核</h2>
+          <p>只顯示目前登入者依角色與部門可以處理的請購單。</p>
+        </div>
+      </div>
+      <div class="content">
+        <div id="approvalList" class="records-list"></div>
       </div>
     </section>
 
@@ -1016,7 +1034,7 @@
       <div class="panel-head">
         <div class="panel-title">
           <h2>權限管理</h2>
-          <p>預覽版帳號與權限先暫存在本機；正式上線後由後端 API 讀寫 Google Sheet 的「使用者權限」分頁，A001 最高權限才能調整角色。</p>
+          <p>帳號與權限由後端 API 讀寫 Google Sheet 的「使用者權限」分頁，最高權限管理者才能調整角色。</p>
         </div>
         <span class="status-pill">最高權限</span>
       </div>
@@ -1100,6 +1118,9 @@
     const SESSION_KEY = "company_purchase_login_v1";
     const USERS_KEY = "company_purchase_users_v1";
     const EDIT_LIMIT_HOURS = 24;
+    let currentUser = null;
+    let usersCache = [];
+    let recordsCache = [];
     let uploadedPhotos = [];
     let applicantSignature = "";
     let signaturePadReady = false;
@@ -1121,26 +1142,15 @@
     }
 
     function getCurrentUser() {
-      return JSON.parse(localStorage.getItem(SESSION_KEY) || "null");
+      return currentUser;
     }
 
     function getUsers() {
-      const users = JSON.parse(localStorage.getItem(USERS_KEY) || "[]");
-      if (!users.some((user) => user.employeeId === "A001")) {
-        users.unshift({
-          employeeId: "A001",
-          name: "系統管理者",
-          email: "",
-          departmentCode: "ADMIN",
-          role: "admin",
-          createdAt: new Date().toISOString()
-        });
-        saveUsers(users);
-      }
-      return users;
+      return usersCache;
     }
 
     function saveUsers(users) {
+      usersCache = Array.isArray(users) ? users : [];
       localStorage.setItem(USERS_KEY, JSON.stringify(users));
     }
 
@@ -1149,10 +1159,11 @@
     }
 
     function getRecords() {
-      return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+      return recordsCache;
     }
 
     function saveRecords(records) {
+      recordsCache = Array.isArray(records) ? records : [];
       localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
     }
 
@@ -1167,7 +1178,7 @@
 
     function canEdit(record) {
       const diffHours = (Date.now() - new Date(record.createdAt).getTime()) / 36e5;
-      return diffHours <= EDIT_LIMIT_HOURS;
+      return currentUser?.role === "最高權限" || currentUser?.role === "admin" || diffHours <= EDIT_LIMIT_HOURS;
     }
 
     function showDialog(title, message) {
@@ -1180,43 +1191,48 @@
       document.getElementById("messageDialog").close();
     }
 
-    document.getElementById("loginForm").addEventListener("submit", (event) => {
+    document.getElementById("loginForm").addEventListener("submit", async (event) => {
       event.preventDefault();
-      const employeeId = document.getElementById("employeeId").value.trim();
-      const password = document.getElementById("password").value;
-      const companyEmail = document.getElementById("companyEmail").value.trim();
-
-      if (password !== "demo") {
-        showDialog("登入失敗", "測試階段密碼請輸入 demo。正式版可改接公司原本配發密碼。");
-        return;
+      try {
+        const result = await apiRequest("/api/auth", {
+          method: "POST",
+          body: JSON.stringify({
+            employeeId: document.getElementById("employeeId").value.trim(),
+            password: document.getElementById("password").value
+          })
+        });
+        currentUser = result.user;
+        localStorage.setItem(SESSION_KEY, JSON.stringify(currentUser));
+        await loadBackendState();
+        await bootApp();
+      } catch (error) {
+        showDialog("登入失敗", error.message || "無法登入，請確認後端環境設定。");
       }
+    });
 
-      const users = getUsers();
-      let profile = users.find((user) => user.employeeId === employeeId);
-      if (!profile) {
-        if (!companyEmail) {
-          showDialog("第一次登入需填寫公司信箱", "請先輸入公司信箱，之後簽核退回或註銷通知會寄到這個信箱。");
+    document.getElementById("registerButton").addEventListener("click", async () => {
+      try {
+        const result = await apiRequest("/api/auth", {
+          method: "POST",
+          body: JSON.stringify({
+            action: "register",
+            employeeId: document.getElementById("employeeId").value.trim(),
+            password: document.getElementById("password").value,
+            name: document.getElementById("accountName").value.trim(),
+            email: document.getElementById("companyEmail").value.trim()
+          })
+        });
+        if (result.pending) {
+          showDialog("註冊完成", result.message);
           return;
         }
-        profile = {
-          employeeId,
-          name: "",
-          email: companyEmail,
-          departmentCode: "",
-          role: employeeId === "A001" ? "admin" : "user",
-          createdAt: new Date().toISOString()
-        };
-        users.push(profile);
-      } else if (companyEmail) {
-        profile.email = companyEmail;
-      } else if (!profile.email && employeeId !== "A001") {
-        showDialog("請補公司信箱", "此帳號尚未保存公司信箱，請輸入後再登入。");
-        return;
+        currentUser = result.user;
+        localStorage.setItem(SESSION_KEY, JSON.stringify(currentUser));
+        await loadBackendState();
+        await bootApp();
+      } catch (error) {
+        showDialog("註冊失敗", error.message || "無法完成註冊，請確認公司信箱。");
       }
-
-      saveUsers(users);
-      localStorage.setItem(SESSION_KEY, JSON.stringify({ ...profile, loginAt: new Date().toISOString() }));
-      bootApp();
     });
 
     document.getElementById("requestForm").addEventListener("submit", async (event) => {
@@ -1252,7 +1268,11 @@
       }
 
       try {
-        await syncToExternalDatabase(payload);
+        const syncResult = await syncToExternalDatabase(payload);
+        const savedRequest = syncResult.request || payload;
+        const savedIndex = records.findIndex((record) => record.id === savedRequest.id);
+        if (savedIndex >= 0) records[savedIndex] = savedRequest;
+        else records.unshift(savedRequest);
       } catch (error) {
         showDialog("同步失敗", error.message || "無法寫入 Google Sheet，請檢查後台 API 設定。");
         return;
@@ -1280,7 +1300,55 @@
       renderPhotos();
     });
 
-    function bootApp() {
+    async function apiRequest(url, options = {}) {
+      const response = await fetch(url, {
+        credentials: "same-origin",
+        ...options,
+        headers: {
+          ...(options.body ? { "Content-Type": "application/json" } : {}),
+          ...(options.headers || {})
+        }
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || result.ok === false) {
+        throw new Error(result.error || "後端服務暫時無法使用");
+      }
+      return result;
+    }
+
+    async function loadBackendState() {
+      const sessionResponse = await fetch("/api/auth", { credentials: "same-origin" });
+      if (!sessionResponse.ok) {
+        currentUser = null;
+        return false;
+      }
+
+      const session = await sessionResponse.json();
+      if (!session.ok || !session.user) {
+        currentUser = null;
+        return false;
+      }
+
+      currentUser = session.user;
+      const requestResult = await apiRequest("/api/requests");
+      saveRecords(requestResult.requests || []);
+
+      if (currentUser.role === "最高權限" || currentUser.role === "admin") {
+        const userResult = await apiRequest("/api/users");
+        saveUsers(userResult.users || []);
+      }
+      return true;
+    }
+
+    async function bootApp() {
+      if (!currentUser) {
+        try {
+          await loadBackendState();
+        } catch {
+          currentUser = null;
+        }
+      }
+
       const user = getCurrentUser();
       document.getElementById("loginScreen").classList.toggle("hidden", Boolean(user));
       document.getElementById("app").classList.toggle("hidden", !user);
@@ -1288,14 +1356,24 @@
       if (!user) return;
 
       document.getElementById("currentUser").textContent = `登入員工：${user.employeeId} | ${roleLabel(user.role)}`;
-      document.getElementById("adminTab").classList.toggle("hidden", user.role !== "admin");
+      const canManage = ["unitManager", "generalManager", "admin", "單位主管", "總經理", "最高權限"].includes(user.role);
+      const canAdmin = user.role === "admin" || user.role === "最高權限";
+      document.getElementById("approvalTab").classList.toggle("hidden", !canManage);
+      document.getElementById("adminTab").classList.toggle("hidden", !canAdmin);
       if (!document.getElementById("itemsBody").children.length) addItem();
       if (!document.getElementById("applyDate").value) document.getElementById("applyDate").value = todayString();
       renderHistory();
+      renderApprovals();
       renderUsers();
     }
 
-    function logout() {
+    async function logout() {
+      try {
+        await apiRequest("/api/auth", { method: "POST", body: JSON.stringify({ action: "logout" }) });
+      } catch {
+        // The local state is cleared even if the remote logout request fails.
+      }
+      currentUser = null;
       localStorage.removeItem(SESSION_KEY);
       location.reload();
     }
@@ -1303,11 +1381,14 @@
     function showView(view) {
       document.getElementById("formView").classList.toggle("hidden", view !== "form");
       document.getElementById("historyView").classList.toggle("hidden", view !== "history");
+      document.getElementById("approvalView").classList.toggle("hidden", view !== "approvals");
       document.getElementById("adminView").classList.toggle("hidden", view !== "admin");
       document.getElementById("newTab").classList.toggle("active", view === "form");
       document.getElementById("historyTab").classList.toggle("active", view === "history");
+      document.getElementById("approvalTab").classList.toggle("active", view === "approvals");
       document.getElementById("adminTab").classList.toggle("active", view === "admin");
       if (view === "history") renderHistory();
+      if (view === "approvals") renderApprovals();
       if (view === "admin") renderUsers();
     }
 
@@ -1625,13 +1706,17 @@
         user: "一般使用者",
         unitManager: "單位主管",
         generalManager: "總經理",
-        admin: "最高權限"
+        admin: "最高權限",
+        "一般使用者": "一般使用者",
+        "單位主管": "單位主管",
+        "總經理": "總經理",
+        "最高權限": "最高權限"
       }[role] || "一般使用者";
     }
 
-    function saveUserRole() {
+    async function saveUserRole() {
       const current = getCurrentUser();
-      if (current.role !== "admin") {
+      if (!current || (current.role !== "admin" && current.role !== "最高權限")) {
         showDialog("權限不足", "只有最高權限管理者可以調整簽核角色。");
         return;
       }
@@ -1642,22 +1727,79 @@
         return;
       }
 
-      const users = getUsers();
-      let profile = users.find((user) => user.employeeId === employeeId);
-      if (!profile) {
-        profile = { employeeId, createdAt: new Date().toISOString() };
-        users.push(profile);
+      try {
+        const result = await apiRequest("/api/users", {
+          method: "POST",
+          body: JSON.stringify({
+            employeeId,
+            email: document.getElementById("roleEmail").value.trim(),
+            departmentCode: document.getElementById("roleDepartment").value.trim().toUpperCase(),
+            name: document.getElementById("roleName").value.trim(),
+            role: document.getElementById("roleType").value,
+            active: true
+          })
+        });
+        const users = getUsers().filter((user) => user.employeeId !== result.user.employeeId);
+        users.push(result.user);
+        saveUsers(users);
+        renderUsers();
+        showDialog("權限已儲存", `${employeeId} 已設定為 ${roleLabel(result.user.role)}。`);
+      } catch (error) {
+        showDialog("權限儲存失敗", error.message || "無法更新帳號權限。");
+      }
+    }
+
+    function canApproveFromClient(record) {
+      const user = getCurrentUser();
+      if (!user || !record || record.approvalStatus?.currentStep === "closed") return false;
+      if (user.role === "admin" || user.role === "最高權限") return true;
+      if ((user.role === "unitManager" || user.role === "單位主管") && record.approvalStatus?.currentStep === "unitManager") {
+        return String(user.departmentCode || "").toUpperCase() === String(record.departmentCode || "").toUpperCase();
+      }
+      return (user.role === "generalManager" || user.role === "總經理")
+        && record.approvalStatus?.currentStep === "generalManager";
+    }
+
+    async function handleApprovalAction(id, action) {
+      const note = action === "reject" ? window.prompt("請輸入退回原因（可留空）") || "" : "";
+      try {
+        const result = await apiRequest("/api/approval-action", {
+          method: "POST",
+          body: JSON.stringify({ id, action, note })
+        });
+        const records = getRecords().filter((record) => record.id !== result.request.id);
+        records.push(result.request);
+        saveRecords(records);
+        renderApprovals();
+        showDialog("簽核完成", `請購單已更新為「${result.status}」。`);
+      } catch (error) {
+        showDialog("簽核失敗", error.message || "目前無法完成簽核。");
+      }
+    }
+
+    function renderApprovals() {
+      const list = document.getElementById("approvalList");
+      if (!list) return;
+      const pending = getRecords().filter(canApproveFromClient);
+      if (!pending.length) {
+        list.innerHTML = "<div class='notice'>目前沒有待處理的請購單。</div>";
+        return;
       }
 
-      profile.email = document.getElementById("roleEmail").value.trim() || profile.email || "";
-      profile.departmentCode = document.getElementById("roleDepartment").value.trim().toUpperCase();
-      profile.name = document.getElementById("roleName").value.trim() || profile.name || "";
-      profile.role = document.getElementById("roleType").value;
-      profile.updatedAt = new Date().toISOString();
-
-      saveUsers(users);
-      renderUsers();
-      showDialog("權限已儲存", `${employeeId} 已設定為 ${roleLabel(profile.role)}。`);
+      list.innerHTML = pending.map((record) => {
+        const title = record.vendorName || record.items?.[0]?.name || "未命名請購單";
+        return `
+          <article class="record-row">
+            <div><strong>${escapeHtml(title)}</strong><span>單號：${escapeHtml(record.id)}</span></div>
+            <div><strong>${escapeHtml(record.applicantName || record.employeeId)}</strong><span>部門：${escapeHtml(record.departmentCode || "-")}</span></div>
+            <div><strong>${escapeHtml(record.approvalStatus?.label || "待簽核")}</strong><span>金額：${formatCurrency(record.totalAmount)}</span></div>
+            <div class="record-actions">
+              <button class="primary-btn" type="button" onclick="handleApprovalAction('${escapeHtml(record.id)}', 'approve')">核准</button>
+              <button class="danger-btn" type="button" onclick="handleApprovalAction('${escapeHtml(record.id)}', 'reject')">退回</button>
+            </div>
+          </article>
+        `;
+      }).join("");
     }
 
     function renderUsers() {
@@ -1665,7 +1807,7 @@
       if (!list) return;
 
       const current = getCurrentUser();
-      if (!current || current.role !== "admin") {
+      if (!current || (current.role !== "admin" && current.role !== "最高權限")) {
         list.innerHTML = "";
         return;
       }

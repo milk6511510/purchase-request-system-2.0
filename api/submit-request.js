@@ -1,54 +1,87 @@
-const { appendToGoogleSheet, sendMail } = require("./integrations");
-
-function json(res, statusCode, data) {
-  res.statusCode = statusCode;
-  res.setHeader("Content-Type", "application/json; charset=utf-8");
-  res.end(JSON.stringify(data));
-}
+const { json, readBody } = require("./_lib/http");
+const {
+  getSessionUser,
+  getRequest,
+  canEditRequest,
+  persistRequest,
+  appendApprovalLog
+} = require("./_lib/domain");
+const { sendMail } = require("./integrations");
 
 function validatePayload(payload) {
   const missing = [];
-  if (!payload.employeeId) missing.push("employeeId");
-  if (!payload.employeeEmail) missing.push("employeeEmail");
-  if (!payload.applicantName) missing.push("applicantName");
-  if (!payload.departmentCode) missing.push("departmentCode");
-  if (!payload.applyDate) missing.push("applyDate");
   if (!payload.applicantSignature) missing.push("applicantSignature");
   if (!Array.isArray(payload.items) || payload.items.length === 0) missing.push("items");
   return missing;
 }
 
 module.exports = async function handler(req, res) {
-  if (req.method !== "POST") {
-    json(res, 405, { ok: false, error: "Method not allowed" });
-    return;
-  }
-
   try {
-    const payload = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
+    if (req.method !== "POST") {
+      res.setHeader("Allow", "POST");
+      json(res, 405, { ok: false, error: "Method not allowed" });
+      return;
+    }
+
+    const user = await getSessionUser(req);
+    const payload = await readBody(req);
     const missing = validatePayload(payload || {});
     if (missing.length) {
       json(res, 400, { ok: false, error: `Missing required fields: ${missing.join(", ")}` });
       return;
     }
 
-    payload.syncedAt = new Date().toISOString();
+    const existing = payload.id ? await getRequest(payload.id) : null;
+    if (existing && !canEditRequest(user, existing)) {
+      json(res, 403, { ok: false, error: "此請購單已超過 24 小時或非本人資料，請聯繫 IT" });
+      return;
+    }
 
-    await appendToGoogleSheet(payload);
+    const now = new Date().toISOString();
+    const savedPayload = {
+      ...payload,
+      id: existing?.id || payload.id || `REQ-${Date.now()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`,
+      employeeId: user.employeeId,
+      employeeEmail: user.email,
+      applicantName: payload.applicantName || user.name || user.employeeId,
+      departmentCode: payload.departmentCode || user.departmentCode,
+      applyDate: payload.applyDate || new Date().toISOString().slice(0, 10),
+      createdAt: existing?.createdAt || now,
+      updatedAt: now,
+      approvalStatus: existing?.approvalStatus || {
+        currentStep: "unitManager",
+        label: "待單位主管簽核",
+        route: [
+          { step: "applicant", label: "申請人", actor: user.name || user.employeeId, actorEmployeeId: user.employeeId, status: "signed", signedAt: now },
+          { step: "unitManager", label: "單位主管", actor: "依部門代號分派", status: "pending", signedAt: "" },
+          { step: "generalManager", label: "總經理", actor: "總經理權限", status: "waiting", signedAt: "" }
+        ]
+      }
+    };
+
+    const persisted = await persistRequest(savedPayload);
+    await appendApprovalLog({
+      request: persisted,
+      action: existing ? "已修改" : "已送出",
+      actor: user,
+      step: existing ? persisted.approvalStatus?.currentStep : "applicant",
+      note: existing ? "申請人於 24 小時內修改" : "申請人送出請購單"
+    });
     await sendMail({
-      to: payload.employeeEmail,
-      subject: `Purchase request submitted: ${payload.id}`,
+      to: persisted.employeeEmail,
+      subject: `請購單已送出：${persisted.id}`,
       html: `
-        <p>Your purchase request has been submitted and entered the approval workflow.</p>
-        <p><strong>Request ID:</strong> ${payload.id}</p>
-        <p><strong>Status:</strong> ${payload.approvalStatus?.label || "Pending unit manager"}</p>
+        <p>請購單已送出，並進入簽核流程。</p>
+        <p><strong>請購單號：</strong>${persisted.id}</p>
+        <p><strong>狀態：</strong>${persisted.approvalStatus?.label || "待單位主管簽核"}</p>
       `
     });
 
     json(res, 200, {
       ok: true,
-      id: payload.id,
-      status: payload.approvalStatus?.label || "Pending unit manager",
+      id: persisted.id,
+      status: persisted.approvalStatus?.label || "待單位主管簽核",
+      request: persisted
     });
   } catch (error) {
     console.error(error);

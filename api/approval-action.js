@@ -1,76 +1,116 @@
-const { appendToGoogleSheet, sendMail } = require("./integrations");
-
-function json(res, statusCode, data) {
-  res.statusCode = statusCode;
-  res.setHeader("Content-Type", "application/json; charset=utf-8");
-  res.end(JSON.stringify(data));
-}
+const { json, readBody } = require("./_lib/http");
+const {
+  getSessionUser,
+  getRequest,
+  canApprove,
+  isRole,
+  persistRequest,
+  appendApprovalLog
+} = require("./_lib/domain");
+const { sendMail } = require("./integrations");
 
 function actionLabel(action) {
   return {
-    approve: "Approved",
-    reject: "Rejected",
-    cancel: "Cancelled"
-  }[action] || "Updated";
+    approve: "已核准",
+    reject: "已退回",
+    cancel: "已註銷"
+  }[action] || "已更新";
+}
+
+function nextApprovalStatus(request, action, actor) {
+  const now = new Date().toISOString();
+  const currentStep = request.approvalStatus?.currentStep || "unitManager";
+  const route = Array.isArray(request.approvalStatus?.route)
+    ? request.approvalStatus.route.map((step) => ({ ...step }))
+    : [];
+  const current = route.find((step) => step.step === currentStep);
+
+  if (current) {
+    current.status = action === "approve" ? "approved" : action;
+    current.actorEmployeeId = actor.employeeId;
+    current.actor = actor.name || actor.employeeId;
+    current.actorEmail = actor.email || "";
+    current.signedAt = now;
+  }
+
+  if (action === "reject" || action === "cancel") {
+    return { label: actionLabel(action), currentStep: "closed", route };
+  }
+
+  if (currentStep === "unitManager") {
+    const generalManager = route.find((step) => step.step === "generalManager");
+    if (generalManager) {
+      generalManager.status = "pending";
+      return { label: "待總經理簽核", currentStep: "generalManager", route };
+    }
+  }
+
+  return { label: "已核准", currentStep: "closed", route };
 }
 
 module.exports = async function handler(req, res) {
-  if (req.method !== "POST") {
-    json(res, 405, { ok: false, error: "Method not allowed" });
-    return;
-  }
-
   try {
-    const body = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
-    const { request, action, actorEmployeeId, actorName, actorEmail, note } = body || {};
-
-    if (!request?.id || !action || !actorEmployeeId) {
-      json(res, 400, { ok: false, error: "Missing request, action, or actorEmployeeId" });
+    if (req.method !== "POST") {
+      res.setHeader("Allow", "POST");
+      json(res, 405, { ok: false, error: "Method not allowed" });
       return;
     }
 
-    const label = actionLabel(action);
-    const actionPayload = {
-      ...request,
-      id: request.id,
-      updatedAt: new Date().toISOString(),
-      approvalStatus: {
-        ...(request.approvalStatus || {}),
-        label,
-        currentStep: action === "approve" ? "next" : "closed",
-        route: [
-          {
-            step: request.approvalStatus?.currentStep || "approval",
-            status: action,
-            actorEmployeeId,
-            actor: actorName || actorEmployeeId,
-            actorEmail: actorEmail || "",
-            note: note || "",
-            signedAt: new Date().toISOString()
-          }
-        ]
-      }
-    };
+    const actor = await getSessionUser(req);
+    const body = await readBody(req);
+    const action = String(body.action || "").trim();
+    if (!body.id || !["approve", "reject", "cancel"].includes(action)) {
+      json(res, 400, { ok: false, error: "請提供有效的請購單號與簽核動作" });
+      return;
+    }
 
-    await appendToGoogleSheet(actionPayload);
+    const request = await getRequest(body.id);
+    if (!request) {
+      json(res, 404, { ok: false, error: "找不到請購單" });
+      return;
+    }
+
+    if (action === "cancel") {
+      const allowed = isRole(actor, "admin") || actor.employeeId === request.employeeId;
+      if (!allowed) {
+        json(res, 403, { ok: false, error: "只有申請人或最高權限管理者可以註銷" });
+        return;
+      }
+    } else if (!canApprove(actor, request)) {
+      json(res, 403, { ok: false, error: "目前簽核關卡與你的權限不符" });
+      return;
+    }
+
+    const updated = await persistRequest({
+      ...request,
+      updatedAt: new Date().toISOString(),
+      approvalStatus: nextApprovalStatus(request, action, actor)
+    });
+    await appendApprovalLog({
+      request: updated,
+      action: actionLabel(action),
+      actor,
+      step: request.approvalStatus?.currentStep || "",
+      note: body.note || ""
+    });
 
     if (action === "reject" || action === "cancel") {
       await sendMail({
         to: request.employeeEmail,
-        subject: `Purchase request ${label}: ${request.id}`,
+        subject: `請購單${actionLabel(action)}：${request.id}`,
         html: `
-          <p>Your purchase request status has changed.</p>
-          <p><strong>Request ID:</strong> ${request.id}</p>
-          <p><strong>Status:</strong> ${label}</p>
-          <p><strong>Reviewer:</strong> ${actorName || actorEmployeeId}</p>
-          <p><strong>Note:</strong> ${note || "No note provided"}</p>
+          <p>你的請購單狀態已更新。</p>
+          <p><strong>請購單號：</strong>${request.id}</p>
+          <p><strong>狀態：</strong>${actionLabel(action)}</p>
+          <p><strong>處理人：</strong>${actor.name || actor.employeeId}</p>
+          <p><strong>說明：</strong>${body.note || "未提供說明"}</p>
         `
       });
     }
 
-    json(res, 200, { ok: true, id: request.id, status: label });
+    json(res, 200, { ok: true, id: updated.id, status: updated.approvalStatus.label, request: updated });
   } catch (error) {
     console.error(error);
-    json(res, 500, { ok: false, error: error.message || "Internal server error" });
+    json(res, error.statusCode || 500, { ok: false, error: error.message || "簽核服務暫時無法使用" });
   }
 };

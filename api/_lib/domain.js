@@ -9,7 +9,7 @@ const {
 } = require("./sheets");
 
 const USER_HEADERS = [
-  "員工編號", "姓名", "公司信箱", "部門代號", "權限", "啟用", "建立時間", "更新時間", "備註", "密碼雜湊"
+  "員工編號", "姓名", "公司信箱", "部門代號", "權限", "簽核職務", "啟用", "首次登入須改密碼", "建立時間", "更新時間", "備註", "密碼雜湊"
 ];
 
 const REQUEST_HEADERS = [
@@ -38,14 +38,38 @@ function isActive(value) {
   return value === true || value === "TRUE" || value === "true" || value === 1 || value === "1";
 }
 
+function normalizeSystemRole(value) {
+  const role = String(value || "").trim();
+  if (["superAdmin", "admin", "最高權限", "最高權限管理者", "最高權限者"].includes(role)) return "superAdmin";
+  if (["manager", "管理者", "generalManager", "總經理"].includes(role)) return "manager";
+  return "user";
+}
+
+function normalizeApprovalRole(value, fallbackRole = "") {
+  const role = String(value || "").trim();
+  const fallback = String(fallbackRole || "").trim();
+  if (["unitManager", "單位主管"].includes(role) || ["unitManager", "單位主管"].includes(fallback)) return "unitManager";
+  if (["generalManager", "總經理"].includes(role) || ["generalManager", "總經理"].includes(fallback)) return "generalManager";
+  return "";
+}
+
+function normalizeUserRoles(user = {}) {
+  return {
+    role: normalizeSystemRole(user.role),
+    approvalRole: normalizeApprovalRole(user.approvalRole, user.role)
+  };
+}
+
 function userFromRow(row) {
+  const roles = normalizeUserRoles({ role: row["權限"], approvalRole: row["簽核職務"] });
   return {
     employeeId: String(row["員工編號"] || "").trim(),
     name: String(row["姓名"] || "").trim(),
     email: String(row["公司信箱"] || "").trim(),
     departmentCode: String(row["部門代號"] || "").trim().toUpperCase(),
-    role: String(row["權限"] || "一般使用者").trim(),
+    ...roles,
     active: isActive(row["啟用"]),
+    mustChangePassword: isActive(row["首次登入須改密碼"]),
     createdAt: row["建立時間"] || "",
     updatedAt: row["更新時間"] || "",
     note: row["備註"] || "",
@@ -60,8 +84,10 @@ function userToRow(user) {
     "姓名": user.name || "",
     "公司信箱": user.email || "",
     "部門代號": user.departmentCode || "",
-    "權限": user.role || "一般使用者",
+    "權限": normalizeSystemRole(user.role),
+    "簽核職務": normalizeApprovalRole(user.approvalRole, user.role),
     "啟用": user.active !== false,
+    "首次登入須改密碼": user.mustChangePassword === true,
     "建立時間": user.createdAt || new Date().toISOString(),
     "更新時間": user.updatedAt || new Date().toISOString(),
     "備註": user.note || "",
@@ -89,7 +115,7 @@ async function saveUser(user) {
   const normalized = {
     ...user,
     employeeId: String(user.employeeId || "").trim().toUpperCase(),
-    role: user.role || "一般使用者",
+    ...normalizeUserRoles(user),
     active: user.active !== false,
     updatedAt: new Date().toISOString()
   };
@@ -137,25 +163,32 @@ async function getRequest(id) {
 
 function roleName(role) {
   return {
-    user: "一般使用者",
-    unitManager: "單位主管",
-    generalManager: "總經理",
-    admin: "最高權限",
-    "一般使用者": "一般使用者",
-    "單位主管": "單位主管",
-    "總經理": "總經理",
-    "最高權限": "最高權限"
-  }[role] || role || "一般使用者";
+    user: "一般員工",
+    manager: "管理者",
+    superAdmin: "最高權限者",
+    admin: "最高權限者",
+    "一般使用者": "一般員工",
+    "一般員工": "一般員工",
+    "管理者": "管理者",
+    "最高權限": "最高權限者",
+    "最高權限管理者": "最高權限者",
+    "最高權限者": "最高權限者"
+  }[role] || role || "一般員工";
 }
 
 function isRole(user, ...roles) {
-  const normalized = roleName(user?.role);
-  return roles.some((role) => roleName(role) === normalized);
+  const normalized = normalizeUserRoles(user || {});
+  return roles.some((role) => {
+    const value = String(role || "").trim();
+    if (["unitManager", "單位主管"].includes(value)) return normalized.approvalRole === "unitManager";
+    if (["generalManager", "總經理"].includes(value)) return normalized.approvalRole === "generalManager";
+    return normalizeSystemRole(value) === normalized.role;
+  });
 }
 
 function canReadRequest(user, request) {
   if (!user || !request) return false;
-  if (isRole(user, "admin", "generalManager")) return true;
+  if (isRole(user, "superAdmin", "manager", "generalManager")) return true;
   if (isRole(user, "unitManager")) {
     return String(user.departmentCode || "").toUpperCase() === String(request.departmentCode || "").toUpperCase();
   }
@@ -164,13 +197,16 @@ function canReadRequest(user, request) {
 
 function canEditRequest(user, request) {
   if (!canReadRequest(user, request)) return false;
-  if (isRole(user, "admin")) return true;
+  if (isRole(user, "superAdmin")) return true;
+  const createdAt = new Date(request.createdAt).getTime();
   return user.employeeId === request.employeeId
-    && Date.now() - new Date(request.createdAt).getTime() <= 24 * 60 * 60 * 1000;
+    && Number.isFinite(createdAt)
+    && Date.now() - createdAt >= 0
+    && Date.now() - createdAt <= 24 * 60 * 60 * 1000;
 }
 
 function canApprove(user, request) {
-  if (isRole(user, "admin")) return true;
+  if (isRole(user, "superAdmin")) return true;
   const currentStep = request.approvalStatus?.currentStep;
   if (currentStep === "unitManager" && isRole(user, "unitManager")) {
     return String(user.departmentCode || "").toUpperCase() === String(request.departmentCode || "").toUpperCase();
@@ -178,12 +214,17 @@ function canApprove(user, request) {
   return currentStep === "generalManager" && isRole(user, "generalManager");
 }
 
-async function getSessionUser(req) {
+async function getSessionUser(req, allowPasswordChange = false) {
   const cookies = getCookies(req);
   const session = readSession(cookies[SESSION_COOKIE]);
   if (!session) throw new AuthError();
   const user = await getUser(session.employeeId);
   if (!user || !user.active) throw new AuthError("帳號尚未啟用或已停用");
+  if (user.mustChangePassword && !allowPasswordChange) {
+    const error = new AuthError("首次登入請先修改密碼");
+    error.statusCode = 403;
+    throw error;
+  }
   return user;
 }
 
@@ -292,7 +333,7 @@ async function appendApprovalLog({ request, action, actor, note, step }) {
   });
 }
 
-module.exports = {
+const sheetsDomain = {
   USER_HEADERS,
   REQUEST_HEADERS,
   ITEM_HEADERS,
@@ -305,6 +346,9 @@ module.exports = {
   getRequests,
   getRequest,
   roleName,
+  normalizeSystemRole,
+  normalizeApprovalRole,
+  normalizeUserRoles,
   isRole,
   canReadRequest,
   canEditRequest,
@@ -313,3 +357,7 @@ module.exports = {
   persistRequest,
   appendApprovalLog
 };
+
+module.exports = process.env.DATABASE_URL
+  ? require("./domain-postgres")
+  : sheetsDomain;

@@ -2,13 +2,6 @@ const { json, readBody, setCookie, clearCookie } = require("./_lib/http");
 const { hashPassword, verifyPassword, createSession, SESSION_COOKIE, SESSION_TTL_SECONDS } = require("./_lib/security");
 const { getUser, saveUser, publicUser } = require("./_lib/domain");
 
-function emailAllowed(email) {
-  const normalized = String(email || "").trim().toLowerCase();
-  const domain = String(process.env.COMPANY_EMAIL_DOMAIN || "").trim().toLowerCase().replace(/^@/, "");
-  if (!domain) return process.env.NODE_ENV !== "production";
-  return normalized.endsWith(`@${domain}`);
-}
-
 function normalizeEmployeeId(value) {
   return String(value || "").trim().toUpperCase();
 }
@@ -22,11 +15,12 @@ async function ensureAdminBootstrap() {
   if (!initialPassword) return null;
   return saveUser({
     employeeId,
-    name: "系統管理者",
+    name: "李柏勳",
     email: process.env.ADMIN_EMAIL || "",
     departmentCode: "ADMIN",
-    role: "最高權限",
+    role: "superAdmin",
     active: true,
+    mustChangePassword: process.env.ADMIN_INITIAL_FORCE_CHANGE !== "false",
     passwordHash: await hashPassword(initialPassword),
     note: "由環境變數建立的初始最高權限帳號"
   });
@@ -53,58 +47,44 @@ async function login(body, res) {
   json(res, 200, { ok: true, user: publicUser(user) });
 }
 
-async function register(body, res) {
-  const employeeId = normalizeEmployeeId(body.employeeId);
-  const email = String(body.email || "").trim().toLowerCase();
-  const name = String(body.name || "").trim();
-  const password = String(body.password || "");
+async function changePassword(body, req, res) {
+  const user = await require("./_lib/domain").getSessionUser(req, true);
+  const currentPassword = String(body.currentPassword || "");
+  const newPassword = String(body.newPassword || "");
+  if (!currentPassword || !newPassword) {
+    json(res, 400, { ok: false, error: "請輸入目前密碼與新密碼" });
+    return;
+  }
+  if (!(await verifyPassword(currentPassword, user.passwordHash))) {
+    json(res, 401, { ok: false, error: "目前密碼不正確" });
+    return;
+  }
+  if (newPassword.length < 8) {
+    json(res, 400, { ok: false, error: "新密碼至少需要 8 個字元" });
+    return;
+  }
+  if (newPassword !== String(body.confirmPassword || "")) {
+    json(res, 400, { ok: false, error: "兩次輸入的新密碼不一致" });
+    return;
+  }
+  if (await verifyPassword(newPassword, user.passwordHash)) {
+    json(res, 400, { ok: false, error: "新密碼不可與目前密碼相同" });
+    return;
+  }
 
-  if (!employeeId || !email || !password) {
-    json(res, 400, { ok: false, error: "請填寫員工編號、公司信箱與密碼" });
-    return;
-  }
-  if (!emailAllowed(email)) {
-    json(res, 400, { ok: false, error: "請使用公司信箱註冊" });
-    return;
-  }
-
-  const existing = await getUser(employeeId);
-  if (existing?.passwordHash) {
-    json(res, 409, { ok: false, error: "此員工編號已完成註冊，請直接登入" });
-    return;
-  }
-  if (existing?.email && existing.email.toLowerCase() !== email) {
-    json(res, 403, { ok: false, error: "此員工編號已綁定其他公司信箱，請聯繫 IT" });
-    return;
-  }
-
-  const active = existing ? existing.active : process.env.SELF_REGISTER_AUTO_ACTIVATE === "true";
-  const user = await saveUser({
-    ...(existing || {}),
-    employeeId,
-    name: name || existing?.name || "",
-    email,
-    departmentCode: existing?.departmentCode || "",
-    role: existing?.role || "一般使用者",
-    active,
-    passwordHash: await hashPassword(password),
-    note: existing?.note || (active ? "首次註冊" : "等待最高權限管理者啟用")
+  const updated = await saveUser({
+    ...user,
+    mustChangePassword: false,
+    passwordHash: await hashPassword(newPassword)
   });
-
-  if (!user.active) {
-    json(res, 202, { ok: true, pending: true, message: "註冊完成，請等待最高權限管理者啟用帳號" });
-    return;
-  }
-
-  setCookie(res, SESSION_COOKIE, createSession(user.employeeId), { maxAge: SESSION_TTL_SECONDS });
-  json(res, 200, { ok: true, user: publicUser(user) });
+  json(res, 200, { ok: true, user: publicUser(updated) });
 }
 
 module.exports = async function handler(req, res) {
   try {
     if (req.method === "GET") {
       const { getSessionUser } = require("./_lib/domain");
-      const user = await getSessionUser(req);
+      const user = await getSessionUser(req, true);
       json(res, 200, { ok: true, user: publicUser(user) });
       return;
     }
@@ -121,8 +101,12 @@ module.exports = async function handler(req, res) {
       json(res, 200, { ok: true });
       return;
     }
+    if (body.action === "changePassword") {
+      await changePassword(body, req, res);
+      return;
+    }
     if (body.action === "register") {
-      await register(body, res);
+      json(res, 403, { ok: false, error: "目前不開放員工自行註冊，請洽最高權限者建立帳號並核發臨時密碼。" });
       return;
     }
     await login(body, res);

@@ -10,8 +10,10 @@ const { sendMail } = require("./integrations");
 
 function validatePayload(payload) {
   const missing = [];
-  if (!payload.applicantSignature) missing.push("applicantSignature");
-  if (!Array.isArray(payload.items) || payload.items.length === 0) missing.push("items");
+  if (!payload.applicantSignature) missing.push("申請人簽名");
+  if (!Array.isArray(payload.items) || !payload.items.some((item) => String(item.name || "").trim())) {
+    missing.push("至少一項品名");
+  }
   return missing;
 }
 
@@ -27,7 +29,7 @@ module.exports = async function handler(req, res) {
     const payload = await readBody(req);
     const missing = validatePayload(payload || {});
     if (missing.length) {
-      json(res, 400, { ok: false, error: `Missing required fields: ${missing.join(", ")}` });
+      json(res, 400, { ok: false, error: `請補齊必要資料：${missing.join("、")}` });
       return;
     }
 
@@ -85,6 +87,6 @@ module.exports = async function handler(req, res) {
     });
   } catch (error) {
     console.error(error);
-    json(res, 500, { ok: false, error: error.message || "Internal server error" });
+    json(res, error.statusCode || 500, { ok: false, error: error.message || "請購單儲存失敗，請稍後再試" });
   }
 };

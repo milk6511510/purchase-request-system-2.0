@@ -11,8 +11,8 @@ function requiredEnv(name) {
   return value;
 }
 
-async function hashPassword(password) {
-  if (!password || password.length < 8) throw new Error("密碼至少需要 8 個字元");
+async function hashPassword(password, minimumLength = 8) {
+  if (!password || password.length < minimumLength) throw new Error(`密碼至少需要 ${minimumLength} 個字元`);
   const salt = crypto.randomBytes(16).toString("hex");
   const derivedKey = await scrypt(password, salt, 64);
   return `scrypt$${salt}$${derivedKey.toString("hex")}`;

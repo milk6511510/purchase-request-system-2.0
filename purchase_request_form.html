@@ -84,6 +84,74 @@
       flex-wrap: wrap;
     }
 
+    .workspace-view {
+      padding: 18px 4px 28px;
+    }
+
+    .workspace-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .workspace-heading h1 {
+      margin: 0;
+      font-size: 26px;
+    }
+
+    .workspace-heading p {
+      margin: 4px 0 0;
+      color: var(--muted);
+    }
+
+    .workspace-stats {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .workspace-stat {
+      padding: 16px 20px;
+    }
+
+    .workspace-stat + .workspace-stat {
+      border-left: 1px solid var(--line);
+    }
+
+    .workspace-stat span {
+      display: block;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .workspace-stat strong {
+      display: block;
+      margin-top: 3px;
+      font-size: 25px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .workspace-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 16px;
+    }
+
+    .workspace-section {
+      margin-top: 28px;
+      padding-top: 20px;
+      border-top: 1px solid var(--line);
+    }
+
+    .workspace-section h2 {
+      margin: 0 0 14px;
+      font-size: 18px;
+    }
+
     .tab-btn, .ghost-btn, .primary-btn, .danger-btn, .icon-btn {
       border: 1px solid transparent;
       border-radius: 6px;
@@ -446,6 +514,14 @@
       background: #edf1f6;
     }
 
+    .attachment-link {
+      display: inline-flex;
+      align-items: center;
+      min-height: 40px;
+      color: var(--brand-strong);
+      font-weight: 700;
+    }
+
     .photo-card footer {
       display: flex;
       align-items: center;
@@ -713,6 +789,7 @@
       .record-actions { justify-content: flex-start; }
       .topbar { align-items: flex-start; flex-direction: column; }
       .user-box { justify-content: flex-start; }
+      .workspace-heading { align-items: flex-start; flex-direction: column; }
     }
 
     @media (max-width: 540px) {
@@ -722,6 +799,9 @@
       .field.half { grid-column: 1 / -1; }
       .checks { grid-template-columns: 1fr; }
       .form-actions button, .tabs button { width: 100%; }
+      .workspace-stats { grid-template-columns: 1fr; }
+      .workspace-stat + .workspace-stat { border-left: 0; border-top: 1px solid var(--line); }
+      .workspace-actions button { width: 100%; }
     }
   </style>
 </head>
@@ -731,28 +811,43 @@
   <main id="loginScreen" class="login-screen">
     <section class="login-card">
       <h1>公司內部請購單</h1>
-      <p>請使用公司配發的員工編號與密碼登入。</p>
+      <p>請使用管理員核發的員工編號與臨時密碼登入。</p>
       <form id="loginForm">
         <div class="field">
           <label for="employeeId">員工編號</label>
-          <input id="employeeId" autocomplete="username" required placeholder="例如 A001">
+          <input id="employeeId" autocomplete="username" required placeholder="請輸入員工編號">
         </div>
         <div class="field" style="margin-top:12px;">
           <label for="password">登入密碼</label>
-          <input id="password" type="password" autocomplete="current-password" required placeholder="至少 8 個字元">
-        </div>
-        <div class="field" style="margin-top:12px;">
-          <label for="accountName">姓名（首次註冊填寫）</label>
-          <input id="accountName" autocomplete="name" placeholder="例如 王小明">
-        </div>
-        <div class="field" style="margin-top:12px;">
-          <label for="companyEmail">公司信箱</label>
-          <input id="companyEmail" type="email" autocomplete="email" placeholder="第一次註冊必填，例如 name@company.com">
+          <input id="password" type="password" autocomplete="current-password" required>
         </div>
         <button class="primary-btn" type="submit" style="width:100%;margin-top:18px;">登入</button>
-        <button id="registerButton" class="ghost-btn" type="button" style="width:100%;margin-top:10px;">首次註冊</button>
       </form>
-      <div class="hint">帳號、權限與登入 session 由後端管理；第一次註冊需使用公司信箱，是否立即啟用由系統設定或最高權限管理者決定。</div>
+      <div class="hint">尚未取得帳號或臨時密碼，請聯繫最高權限者或資訊人員。</div>
+    </section>
+  </main>
+
+  <main id="passwordChangeScreen" class="login-screen hidden">
+    <section class="login-card">
+      <h1>首次登入安全設定</h1>
+      <p id="passwordChangeIdentity"></p>
+      <form id="passwordChangeForm">
+        <div class="field">
+          <label for="currentPassword">臨時登入密碼</label>
+          <input id="currentPassword" type="password" autocomplete="current-password" required>
+        </div>
+        <div class="field" style="margin-top:12px;">
+          <label for="newPassword">新密碼</label>
+          <input id="newPassword" type="password" autocomplete="new-password" minlength="8" required>
+        </div>
+        <div class="field" style="margin-top:12px;">
+          <label for="newPasswordConfirm">再次輸入新密碼</label>
+          <input id="newPasswordConfirm" type="password" autocomplete="new-password" minlength="8" required>
+        </div>
+        <button class="primary-btn" type="submit" style="width:100%;margin-top:18px;">更新密碼並登入</button>
+        <button class="ghost-btn" type="button" style="width:100%;margin-top:10px;" onclick="logout()">返回登入</button>
+      </form>
+      <div class="hint">新密碼至少 8 個字元。更新前無法進入請購資料或管理功能。</div>
     </section>
   </main>
 
@@ -760,7 +855,7 @@
     <header class="topbar">
       <div class="brand-title">
         <strong>股份有限公司 請購單</strong>
-        <span>電子表單系統 | 資料同步至 Google Sheet 後台</span>
+        <span>請購管理工作台 | 資料由系統後端安全管理</span>
       </div>
       <div class="user-box">
         <span id="currentUser"></span>
@@ -769,11 +864,38 @@
     </header>
 
     <nav class="tabs" aria-label="主要功能">
-      <button id="newTab" class="tab-btn active" type="button" onclick="showView('form')">新增請購單</button>
+      <button id="workspaceTab" class="tab-btn active" type="button" onclick="showView('workspace')">工作台</button>
+      <button id="newTab" class="tab-btn" type="button" onclick="showView('form')">新增請購單</button>
       <button id="historyTab" class="tab-btn" type="button" onclick="showView('history')">我的過往請購單</button>
+      <button id="allRequestsTab" class="tab-btn hidden" type="button" onclick="showView('allRequests')">請購總覽</button>
       <button id="approvalTab" class="tab-btn hidden" type="button" onclick="showView('approvals')">待我簽核</button>
       <button id="adminTab" class="tab-btn hidden" type="button" onclick="showView('admin')">權限管理</button>
     </nav>
+
+    <section id="workspaceView" class="workspace-view">
+      <div class="workspace-heading">
+        <div>
+          <h1>工作台</h1>
+          <p id="workspaceGreeting">請購申請與簽核概況</p>
+        </div>
+        <button class="primary-btn" type="button" onclick="resetForm()">新增請購單</button>
+      </div>
+      <div class="workspace-stats" aria-label="請購單概況">
+        <div class="workspace-stat"><span>我的請購單</span><strong id="workspaceMyCount">0</strong></div>
+        <div class="workspace-stat"><span>待我簽核</span><strong id="workspacePendingCount">0</strong></div>
+        <div class="workspace-stat"><span>已完成簽核</span><strong id="workspaceDoneCount">0</strong></div>
+      </div>
+      <div class="workspace-actions">
+        <button class="ghost-btn" type="button" onclick="showView('history')">查看我的請購紀錄</button>
+        <button id="workspaceApprovalAction" class="ghost-btn hidden" type="button" onclick="showView('approvals')">處理待簽核</button>
+        <button id="workspaceRecordsAction" class="ghost-btn hidden" type="button" onclick="showView('allRequests')">查看請購總覽</button>
+        <button id="workspaceAdminAction" class="ghost-btn hidden" type="button" onclick="showView('admin')">帳號與權限管理</button>
+      </div>
+      <section class="workspace-section">
+        <h2>近期請購紀錄</h2>
+        <div id="workspaceRecent" class="records-list"></div>
+      </section>
+    </section>
 
     <section id="formView" class="panel">
       <div class="panel-head">
@@ -968,7 +1090,7 @@
               <input id="photoInput" type="file" accept="image/*" capture="environment" multiple>
               <button class="ghost-btn" type="button" onclick="document.getElementById('photoInput').click()">拍照 / 上傳照片</button>
             </div>
-            <div class="hint" style="margin-top:0;">可拍攝發票、報價單、商品現況或相關附件。測試版會先存在瀏覽器，正式版建議上傳到公司雲端或後台儲存空間。</div>
+            <div class="hint" style="margin-top:0;">送出時照片會上傳至已設定的公司雲端儲存空間；若尚未設定，系統會提示並停止送出，避免附件遺失。</div>
             <div id="photoPreview" class="photo-grid"></div>
           </div>
         </section>
@@ -977,6 +1099,7 @@
           <h2 class="section-label">申請人簽名與簽核流程</h2>
           <div class="signature-box">
             <div class="signature-preview" id="signaturePreview">尚未簽名</div>
+            <div class="hint" style="margin-top:0;">手寫簽名會儲存在系統資料庫；照片附件需先設定公司雲端儲存空間。</div>
             <div class="form-actions" style="justify-content:flex-start;">
               <button class="primary-btn" type="button" onclick="openSignatureDialog()">手寫簽名</button>
               <button class="ghost-btn" type="button" onclick="clearSignature()">清除簽名</button>
@@ -1030,18 +1153,30 @@
       </div>
     </section>
 
+    <section id="allRequestsView" class="panel hidden">
+      <div class="panel-head">
+        <div class="panel-title">
+          <h2>請購總覽</h2>
+          <p>依系統權限與簽核職務顯示可檢視的請購單。</p>
+        </div>
+      </div>
+      <div class="content">
+        <div id="allRequestsList" class="records-list"></div>
+      </div>
+    </section>
+
     <section id="adminView" class="panel hidden">
       <div class="panel-head">
         <div class="panel-title">
           <h2>權限管理</h2>
-          <p>帳號與權限由後端 API 讀寫 Google Sheet 的「使用者權限」分頁，最高權限管理者才能調整角色。</p>
+          <p>只有最高權限者可管理帳號、系統權限與簽核職務。</p>
         </div>
-        <span class="status-pill">最高權限</span>
+        <span class="status-pill">最高權限者專區</span>
       </div>
       <div class="content">
         <div class="admin-grid">
           <section class="admin-card">
-            <h3>新增 / 更新人員權限</h3>
+            <h3>建立帳號 / 指派權限</h3>
             <div class="grid" style="padding:0;grid-template-columns:1fr 1fr;">
               <div class="field">
                 <label for="roleEmployeeId">員工編號</label>
@@ -1057,29 +1192,45 @@
               </div>
               <div class="field">
                 <label for="roleName">姓名</label>
-                <input id="roleName" placeholder="可選填">
+                <input id="roleName" placeholder="請填寫員工姓名">
               </div>
               <div class="field full">
-                <label for="roleType">權限</label>
+                <label for="roleType">系統權限</label>
                 <select id="roleType">
-                  <option value="user">一般使用者</option>
-                  <option value="unitManager">單位主管</option>
-                  <option value="generalManager">總經理</option>
-                  <option value="admin">最高權限管理者</option>
+                  <option value="user">一般員工</option>
+                  <option value="manager">管理者</option>
+                  <option value="superAdmin">最高權限者</option>
                 </select>
               </div>
+              <div class="field full">
+                <label for="approvalRoleType">簽核職務</label>
+                <select id="approvalRoleType">
+                  <option value="">無簽核職務</option>
+                  <option value="unitManager">單位主管</option>
+                  <option value="generalManager">總經理</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="adminTempPassword">初始／重設臨時密碼</label>
+                <input id="adminTempPassword" type="password" autocomplete="new-password" minlength="8" placeholder="至少 8 個字元">
+              </div>
+              <div class="field">
+                <label for="adminTempPasswordConfirm">再次輸入臨時密碼</label>
+                <input id="adminTempPasswordConfirm" type="password" autocomplete="new-password" minlength="8">
+              </div>
             </div>
+            <p class="hint" style="margin-top:12px;">新增帳號必須設定臨時密碼。儲存後請透過公司核准的方式交付員工；員工首次登入必須自行更換。</p>
             <div class="form-actions" style="justify-content:flex-start;margin-top:12px;">
-              <button class="primary-btn" type="button" onclick="saveUserRole()">儲存權限</button>
+              <button class="primary-btn" type="button" onclick="saveUserRole()">儲存帳號與權限</button>
             </div>
           </section>
 
           <section class="admin-card">
-            <h3>簽核與退回通知建議</h3>
-            <p class="hint" style="margin-top:0;">使用者送出後，系統依部門代號找到單位主管；主管核准後送總經理。若退回或註銷，後台可同步更新狀態並寄信到註冊公司信箱。</p>
+            <h3>權限範圍</h3>
+            <p class="hint" style="margin-top:0;">最高權限者可完整管理系統、帳號、角色與資料；管理者可查看請購總覽，但不能指派權限；一般員工只能查看自己的請購單。員工帳號由最高權限者建立，簽核職務另外指派。</p>
             <div class="role-list">
-              <div class="role-row"><strong>A001</strong><span>預設最高權限管理者</span></div>
-              <div class="role-row"><strong>通知信箱</strong><span>來自首次登入或管理者設定</span></div>
+              <div class="role-row"><strong>A001 李柏勳</strong><span>最高權限者</span></div>
+              <div class="role-row"><strong>簽核流程</strong><span>申請人 → 單位主管 → 總經理</span></div>
             </div>
           </section>
         </div>
@@ -1114,9 +1265,6 @@
   </dialog>
 
   <script>
-    const STORAGE_KEY = "company_purchase_requests_v1";
-    const SESSION_KEY = "company_purchase_login_v1";
-    const USERS_KEY = "company_purchase_users_v1";
     const EDIT_LIMIT_HOURS = 24;
     let currentUser = null;
     let usersCache = [];
@@ -1145,13 +1293,21 @@
       return currentUser;
     }
 
+    function isSuperAdmin(user = currentUser) {
+      return ["superAdmin", "admin", "最高權限", "最高權限者"].includes(user?.role);
+    }
+
+    function hasApprovalRole(user = currentUser) {
+      return ["unitManager", "generalManager"].includes(user?.approvalRole)
+        || ["unitManager", "generalManager", "單位主管", "總經理"].includes(user?.role);
+    }
+
     function getUsers() {
       return usersCache;
     }
 
     function saveUsers(users) {
       usersCache = Array.isArray(users) ? users : [];
-      localStorage.setItem(USERS_KEY, JSON.stringify(users));
     }
 
     function findUser(employeeId) {
@@ -1164,7 +1320,6 @@
 
     function saveRecords(records) {
       recordsCache = Array.isArray(records) ? records : [];
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
     }
 
     function formatCurrency(value) {
@@ -1178,7 +1333,8 @@
 
     function canEdit(record) {
       const diffHours = (Date.now() - new Date(record.createdAt).getTime()) / 36e5;
-      return currentUser?.role === "最高權限" || currentUser?.role === "admin" || diffHours <= EDIT_LIMIT_HOURS;
+      return isSuperAdmin() || (record.employeeId === currentUser?.employeeId
+        && Number.isFinite(diffHours) && diffHours >= 0 && diffHours <= EDIT_LIMIT_HOURS);
     }
 
     function showDialog(title, message) {
@@ -1202,7 +1358,10 @@
           })
         });
         currentUser = result.user;
-        localStorage.setItem(SESSION_KEY, JSON.stringify(currentUser));
+        if (currentUser.mustChangePassword) {
+          await bootApp();
+          return;
+        }
         await loadBackendState();
         await bootApp();
       } catch (error) {
@@ -1210,28 +1369,24 @@
       }
     });
 
-    document.getElementById("registerButton").addEventListener("click", async () => {
+    document.getElementById("passwordChangeForm").addEventListener("submit", async (event) => {
+      event.preventDefault();
       try {
         const result = await apiRequest("/api/auth", {
           method: "POST",
           body: JSON.stringify({
-            action: "register",
-            employeeId: document.getElementById("employeeId").value.trim(),
-            password: document.getElementById("password").value,
-            name: document.getElementById("accountName").value.trim(),
-            email: document.getElementById("companyEmail").value.trim()
+            action: "changePassword",
+            currentPassword: document.getElementById("currentPassword").value,
+            newPassword: document.getElementById("newPassword").value,
+            confirmPassword: document.getElementById("newPasswordConfirm").value
           })
         });
-        if (result.pending) {
-          showDialog("註冊完成", result.message);
-          return;
-        }
         currentUser = result.user;
-        localStorage.setItem(SESSION_KEY, JSON.stringify(currentUser));
+        document.getElementById("passwordChangeForm").reset();
         await loadBackendState();
         await bootApp();
       } catch (error) {
-        showDialog("註冊失敗", error.message || "無法完成註冊，請確認公司信箱。");
+        showDialog("密碼更新失敗", error.message || "目前無法更新密碼。");
       }
     });
 
@@ -1274,14 +1429,15 @@
         if (savedIndex >= 0) records[savedIndex] = savedRequest;
         else records.unshift(savedRequest);
       } catch (error) {
-        showDialog("同步失敗", error.message || "無法寫入 Google Sheet，請檢查後台 API 設定。");
+        showDialog("送出失敗", error.message || "無法儲存請購單，請檢查後端設定後再試。");
         return;
       }
 
       saveRecords(records);
-      showDialog("送出完成", "請購單已送出，資料已交由 Google Sheet 後台彙整。");
+      showDialog("送出完成", "請購單已送出，資料已儲存至系統後端。");
       resetForm();
       renderHistory();
+      renderDashboard();
     });
 
     document.getElementById("photoInput").addEventListener("change", async (event) => {
@@ -1330,10 +1486,11 @@
       }
 
       currentUser = session.user;
+      if (currentUser.mustChangePassword) return true;
       const requestResult = await apiRequest("/api/requests");
       saveRecords(requestResult.requests || []);
 
-      if (currentUser.role === "最高權限" || currentUser.role === "admin") {
+      if (isSuperAdmin(currentUser)) {
         const userResult = await apiRequest("/api/users");
         saveUsers(userResult.users || []);
       }
@@ -1350,21 +1507,36 @@
       }
 
       const user = getCurrentUser();
+      const passwordChangeRequired = Boolean(user?.mustChangePassword);
       document.getElementById("loginScreen").classList.toggle("hidden", Boolean(user));
-      document.getElementById("app").classList.toggle("hidden", !user);
+      document.getElementById("passwordChangeScreen").classList.toggle("hidden", !passwordChangeRequired);
+      document.getElementById("app").classList.toggle("hidden", !user || passwordChangeRequired);
 
       if (!user) return;
+      if (passwordChangeRequired) {
+        document.getElementById("passwordChangeIdentity").textContent = `${user.name || user.employeeId}（${user.employeeId}）`;
+        return;
+      }
 
-      document.getElementById("currentUser").textContent = `登入員工：${user.employeeId} | ${roleLabel(user.role)}`;
-      const canManage = ["unitManager", "generalManager", "admin", "單位主管", "總經理", "最高權限"].includes(user.role);
-      const canAdmin = user.role === "admin" || user.role === "最高權限";
-      document.getElementById("approvalTab").classList.toggle("hidden", !canManage);
+      const assignedApprovalRole = approvalRoleLabel(user.approvalRole || user.role);
+      const roleSummary = [roleLabel(user.role), assignedApprovalRole].filter(Boolean).join(" · ");
+      document.getElementById("currentUser").textContent = `登入員工：${user.name || user.employeeId}（${user.employeeId}） | ${roleSummary}`;
+      const canApprove = isSuperAdmin(user) || hasApprovalRole(user);
+      const canAdmin = isSuperAdmin(user);
+      const canSeeOverview = canAdmin || ["manager", "generalManager"].includes(user.role) || hasApprovalRole(user);
+      document.getElementById("approvalTab").classList.toggle("hidden", !canApprove);
+      document.getElementById("allRequestsTab").classList.toggle("hidden", !canSeeOverview);
       document.getElementById("adminTab").classList.toggle("hidden", !canAdmin);
       if (!document.getElementById("itemsBody").children.length) addItem();
       if (!document.getElementById("applyDate").value) document.getElementById("applyDate").value = todayString();
       renderHistory();
       renderApprovals();
       renderUsers();
+      renderAllRequests();
+      document.getElementById("workspaceApprovalAction").classList.toggle("hidden", !canApprove);
+      document.getElementById("workspaceRecordsAction").classList.toggle("hidden", !canSeeOverview);
+      document.getElementById("workspaceAdminAction").classList.toggle("hidden", !canAdmin);
+      showView("workspace");
     }
 
     async function logout() {
@@ -1374,22 +1546,66 @@
         // The local state is cleared even if the remote logout request fails.
       }
       currentUser = null;
-      localStorage.removeItem(SESSION_KEY);
       location.reload();
     }
 
     function showView(view) {
+      document.getElementById("workspaceView").classList.toggle("hidden", view !== "workspace");
       document.getElementById("formView").classList.toggle("hidden", view !== "form");
       document.getElementById("historyView").classList.toggle("hidden", view !== "history");
+      document.getElementById("allRequestsView").classList.toggle("hidden", view !== "allRequests");
       document.getElementById("approvalView").classList.toggle("hidden", view !== "approvals");
       document.getElementById("adminView").classList.toggle("hidden", view !== "admin");
+      document.getElementById("workspaceTab").classList.toggle("active", view === "workspace");
       document.getElementById("newTab").classList.toggle("active", view === "form");
       document.getElementById("historyTab").classList.toggle("active", view === "history");
+      document.getElementById("allRequestsTab").classList.toggle("active", view === "allRequests");
       document.getElementById("approvalTab").classList.toggle("active", view === "approvals");
       document.getElementById("adminTab").classList.toggle("active", view === "admin");
+      if (view === "workspace") renderDashboard();
       if (view === "history") renderHistory();
+      if (view === "allRequests") renderAllRequests();
       if (view === "approvals") renderApprovals();
       if (view === "admin") renderUsers();
+    }
+
+    function renderDashboard() {
+      const user = getCurrentUser();
+      const list = document.getElementById("workspaceRecent");
+      if (!user || !list) return;
+      const mine = getRecords()
+        .filter((record) => record.employeeId === user.employeeId)
+        .sort((left, right) => new Date(right.updatedAt || right.createdAt) - new Date(left.updatedAt || left.createdAt));
+      const pending = getRecords().filter(canApproveFromClient);
+      const completed = mine.filter((record) => record.approvalStatus?.currentStep === "closed");
+      document.getElementById("workspaceGreeting").textContent = `${user.name || user.employeeId}，這裡是你的請購與簽核概況。`;
+      document.getElementById("workspaceMyCount").textContent = String(mine.length);
+      document.getElementById("workspacePendingCount").textContent = String(pending.length);
+      document.getElementById("workspaceDoneCount").textContent = String(completed.length);
+
+      if (!mine.length) {
+        list.innerHTML = "<div class='notice'>尚無請購紀錄，建立第一張請購單後會顯示在這裡。</div>";
+        return;
+      }
+      list.innerHTML = mine.slice(0, 5).map((record) => {
+        const title = record.vendorName || record.items?.[0]?.name || "未命名請購單";
+        const editable = canEdit(record);
+        return `
+          <article class="record-row">
+            <div><strong>${escapeHtml(title)}</strong><span>單號：${escapeHtml(record.id)}</span></div>
+            <div><strong>${formatCurrency(record.totalAmount)}</strong><span>申請日期：${escapeHtml(record.applyDate || "-")}</span></div>
+            <div><strong>${escapeHtml(record.approvalStatus?.label || "待簽核")}</strong><span>${editable ? "24 小時內可修改" : "已鎖定"}</span></div>
+            <div class="record-actions">${editable
+              ? `<button class="ghost-btn" type="button" data-edit-id="${escapeHtml(record.id)}">修改</button>`
+              : `<button class="ghost-btn" type="button" data-locked>聯繫 IT</button>`}</div>
+          </article>`;
+      }).join("");
+      list.querySelectorAll("[data-edit-id]").forEach((button) => {
+        button.addEventListener("click", () => loadRecord(button.dataset.editId));
+      });
+      list.querySelectorAll("[data-locked]").forEach((button) => {
+        button.addEventListener("click", () => showDialog("已超過可修改時間", "此請購單已超過 24 小時，如需修改請聯繫 IT 或相關工作人員。"));
+      });
     }
 
     function addItem(item = {}) {
@@ -1444,15 +1660,24 @@
         return;
       }
 
-      preview.innerHTML = uploadedPhotos.map((photo) => `
-        <article class="photo-card">
-          <img src="${photo.dataUrl}" alt="${escapeHtml(photo.name)}">
-          <footer>
-            <span>${escapeHtml(photo.name)}</span>
-            <button class="danger-btn" type="button" onclick="removePhoto('${photo.id}')">刪除</button>
-          </footer>
-        </article>
-      `).join("");
+      preview.innerHTML = uploadedPhotos.map((photo) => {
+        const dataUrl = String(photo.dataUrl || "");
+        const fileUrl = safeHttpUrl(photo.fileUrl || (photo.fileId ? `https://drive.google.com/open?id=${encodeURIComponent(photo.fileId)}` : ""));
+        const image = /^data:image\/(?:png|jpeg|jpg|webp|gif);base64,/i.test(dataUrl)
+          ? `<img src="${dataUrl}" alt="${escapeHtml(photo.name)}">`
+          : fileUrl
+            ? `<a class="attachment-link" href="${escapeHtml(fileUrl)}" target="_blank" rel="noopener noreferrer">開啟雲端附件</a>`
+            : `<span class="attachment-link">附件尚未上傳</span>`;
+        return `
+          <article class="photo-card">
+            ${image}
+            <footer>
+              <span>${escapeHtml(photo.name)}</span>
+              <button class="danger-btn" type="button" onclick="removePhoto('${escapeHtml(photo.id)}')">刪除</button>
+            </footer>
+          </article>
+        `;
+      }).join("");
     }
 
     function removePhoto(id) {
@@ -1466,7 +1691,14 @@
         preview.textContent = "尚未簽名";
         return;
       }
-      preview.innerHTML = `<img src="${applicantSignature}" alt="申請人簽名">`;
+      if (/^data:image\/(?:png|jpeg|jpg|webp);base64,/i.test(applicantSignature)) {
+        preview.innerHTML = `<img src="${applicantSignature}" alt="申請人簽名">`;
+        return;
+      }
+      const url = safeHttpUrl(applicantSignature);
+      preview.innerHTML = url
+        ? `<a class="attachment-link" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">已簽名，開啟簽名檔</a>`
+        : "已簽名";
     }
 
     function openSignatureDialog() {
@@ -1493,7 +1725,7 @@
       ctx.fillStyle = "#ffffff";
       ctx.fillRect(0, 0, rect.width, rect.height);
 
-      if (applicantSignature) {
+      if (/^data:image\/(?:png|jpeg|jpg|webp);base64,/i.test(applicantSignature)) {
         const image = new Image();
         image.onload = () => ctx.drawImage(image, 0, 0, rect.width, rect.height);
         image.src = applicantSignature;
@@ -1690,34 +1922,44 @@
 
     function resolveUnitManager(departmentCode) {
       const code = String(departmentCode || "").trim().toUpperCase();
-      const manager = getUsers().find((user) => user.role === "unitManager" && String(user.departmentCode || "").toUpperCase() === code);
+      const manager = getUsers().find((user) => (user.approvalRole || user.role) === "unitManager" && String(user.departmentCode || "").toUpperCase() === code);
       if (manager) return `${manager.name || manager.employeeId} (${manager.employeeId})`;
       return "依部門代號分派主管";
     }
 
     function resolveGeneralManager() {
-      const manager = getUsers().find((user) => user.role === "generalManager");
+      const manager = getUsers().find((user) => (user.approvalRole || user.role) === "generalManager");
       if (manager) return `${manager.name || manager.employeeId} (${manager.employeeId})`;
       return "總經理權限";
     }
 
     function roleLabel(role) {
       return {
-        user: "一般使用者",
+        user: "一般員工",
+        manager: "管理者",
+        superAdmin: "最高權限者",
+        admin: "最高權限者",
+        "一般使用者": "一般員工",
+        "一般員工": "一般員工",
+        "管理者": "管理者",
+        "最高權限": "最高權限者",
+        "最高權限者": "最高權限者"
+      }[role] || "一般員工";
+    }
+
+    function approvalRoleLabel(role) {
+      return {
         unitManager: "單位主管",
         generalManager: "總經理",
-        admin: "最高權限",
-        "一般使用者": "一般使用者",
         "單位主管": "單位主管",
-        "總經理": "總經理",
-        "最高權限": "最高權限"
-      }[role] || "一般使用者";
+        "總經理": "總經理"
+      }[role] || "";
     }
 
     async function saveUserRole() {
       const current = getCurrentUser();
-      if (!current || (current.role !== "admin" && current.role !== "最高權限")) {
-        showDialog("權限不足", "只有最高權限管理者可以調整簽核角色。");
+      if (!isSuperAdmin(current)) {
+        showDialog("權限不足", "只有最高權限者可以調整系統權限與簽核職務。");
         return;
       }
 
@@ -1736,6 +1978,9 @@
             departmentCode: document.getElementById("roleDepartment").value.trim().toUpperCase(),
             name: document.getElementById("roleName").value.trim(),
             role: document.getElementById("roleType").value,
+            approvalRole: document.getElementById("approvalRoleType").value,
+            password: document.getElementById("adminTempPassword").value,
+            confirmPassword: document.getElementById("adminTempPasswordConfirm").value,
             active: true
           })
         });
@@ -1743,7 +1988,12 @@
         users.push(result.user);
         saveUsers(users);
         renderUsers();
-        showDialog("權限已儲存", `${employeeId} 已設定為 ${roleLabel(result.user.role)}。`);
+        document.getElementById("adminTempPassword").value = "";
+        document.getElementById("adminTempPasswordConfirm").value = "";
+        const assigned = [roleLabel(result.user.role), approvalRoleLabel(result.user.approvalRole)].filter(Boolean).join("、");
+        showDialog("帳號與權限已儲存", result.user.mustChangePassword
+          ? `${employeeId} 已設定為 ${assigned}。請安全交付臨時密碼，員工首次登入需更換。`
+          : `${employeeId} 已設定為 ${assigned}。`);
       } catch (error) {
         showDialog("權限儲存失敗", error.message || "無法更新帳號權限。");
       }
@@ -1752,11 +2002,11 @@
     function canApproveFromClient(record) {
       const user = getCurrentUser();
       if (!user || !record || record.approvalStatus?.currentStep === "closed") return false;
-      if (user.role === "admin" || user.role === "最高權限") return true;
-      if ((user.role === "unitManager" || user.role === "單位主管") && record.approvalStatus?.currentStep === "unitManager") {
+      if (isSuperAdmin(user)) return true;
+      if ((user.approvalRole === "unitManager" || user.role === "unitManager" || user.role === "單位主管") && record.approvalStatus?.currentStep === "unitManager") {
         return String(user.departmentCode || "").toUpperCase() === String(record.departmentCode || "").toUpperCase();
       }
-      return (user.role === "generalManager" || user.role === "總經理")
+      return (user.approvalRole === "generalManager" || user.role === "generalManager" || user.role === "總經理")
         && record.approvalStatus?.currentStep === "generalManager";
     }
 
@@ -1807,7 +2057,7 @@
       if (!list) return;
 
       const current = getCurrentUser();
-      if (!current || (current.role !== "admin" && current.role !== "最高權限")) {
+      if (!isSuperAdmin(current)) {
         list.innerHTML = "";
         return;
       }
@@ -1816,8 +2066,8 @@
       list.innerHTML = users.map((user) => `
         <article class="role-row">
           <div>
-            <strong>${escapeHtml(user.employeeId)} <span class="approval-badge">${roleLabel(user.role)}</span></strong>
-            <span>${escapeHtml(user.name || "未填姓名")} | ${escapeHtml(user.departmentCode || "未設定部門")} | ${escapeHtml(user.email || "未設定信箱")}</span>
+            <strong>${escapeHtml(user.employeeId)} <span class="approval-badge">${roleLabel(user.role)}${user.approvalRole ? ` · ${approvalRoleLabel(user.approvalRole)}` : ""}</span></strong>
+            <span>${escapeHtml(user.name || "未填姓名")} | ${escapeHtml(user.departmentCode || "未設定部門")} | ${escapeHtml(user.email || "未設定信箱")} | ${user.mustChangePassword ? "首次登入待改密碼" : user.active ? "啟用中" : "停用中"}</span>
           </div>
           <button class="ghost-btn" type="button" onclick="fillRoleForm('${escapeHtml(user.employeeId)}')">編輯</button>
         </article>
@@ -1832,6 +2082,27 @@
       document.getElementById("roleDepartment").value = user.departmentCode || "";
       document.getElementById("roleName").value = user.name || "";
       document.getElementById("roleType").value = user.role || "user";
+      document.getElementById("approvalRoleType").value = user.approvalRole || "";
+      document.getElementById("adminTempPassword").value = "";
+      document.getElementById("adminTempPasswordConfirm").value = "";
+    }
+
+    function renderAllRequests() {
+      const list = document.getElementById("allRequestsList");
+      if (!list) return;
+      const records = getRecords().slice().sort((left, right) => new Date(right.updatedAt || right.createdAt) - new Date(left.updatedAt || left.createdAt));
+      if (!records.length) {
+        list.innerHTML = "<div class='notice'>目前沒有可檢視的請購單。</div>";
+        return;
+      }
+      list.innerHTML = records.map((record) => `
+        <article class="record-row">
+          <div><strong>${escapeHtml(record.vendorName || record.items?.[0]?.name || "未命名請購單")}</strong><span>單號：${escapeHtml(record.id)}</span></div>
+          <div><strong>${escapeHtml(record.applicantName || record.employeeId)}</strong><span>${escapeHtml(record.departmentCode || "未設定部門")} · ${escapeHtml(record.applyDate || "-")}</span></div>
+          <div><strong>${escapeHtml(record.approvalStatus?.label || "待簽核")}</strong><span>${formatCurrency(record.totalAmount)}</span></div>
+          <div><span>${escapeHtml(formatDateTime(record.updatedAt || record.createdAt))}</span></div>
+        </article>
+      `).join("");
     }
 
     function renderHistory() {
@@ -1873,6 +2144,15 @@
       }[char]));
     }
 
+    function safeHttpUrl(value) {
+      try {
+        const url = new URL(String(value || ""), window.location.href);
+        return url.protocol === "https:" || url.protocol === "http:" ? url.href : "";
+      } catch {
+        return "";
+      }
+    }
+
     async function syncToExternalDatabase(payload) {
       const response = await fetch("/api/submit-request", {
         method: "POST",
@@ -1882,7 +2162,7 @@
 
       const result = await response.json().catch(() => ({}));
       if (!response.ok || !result.ok) {
-        throw new Error(result.error || "同步 Google Sheet 失敗");
+        throw new Error(result.error || "儲存請購單失敗");
       }
 
       return result;

@@ -73,6 +73,18 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
+  if (pathname === "/assets/vendor-history.js" && (req.method === "GET" || req.method === "HEAD")) {
+    try {
+      const vendorHistory = await fs.promises.readFile(path.join(__dirname, "assets", "vendor-history.js"));
+      res.writeHead(200, { "Content-Type": "text/javascript; charset=utf-8" });
+      return res.end(req.method === "HEAD" ? undefined : vendorHistory);
+    } catch (error) {
+      console.error(error);
+      res.writeHead(404);
+      return res.end("Not found");
+    }
+  }
+
   if (req.method !== "GET" && req.method !== "HEAD") {
     res.writeHead(405, { Allow: "GET, HEAD" });
     return res.end();

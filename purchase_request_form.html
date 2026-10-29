@@ -1034,7 +1034,8 @@
             </div>
             <div class="field">
               <label for="vendorName">公司名稱 / 廠商</label>
-              <input id="vendorName">
+              <input id="vendorName" list="vendorSuggestions" autocomplete="organization" placeholder="輸入或選擇廠商">
+              <datalist id="vendorSuggestions"></datalist>
             </div>
             <div class="field">
               <label for="vendorTaxId">統一編號</label>
@@ -1293,6 +1294,7 @@
     </div>
   </dialog>
 
+  <script src="/assets/vendor-history.js"></script>
   <script src="/assets/triplicate-template.js"></script>
   <script>
     const EDIT_LIMIT_HOURS = 24;
@@ -1350,6 +1352,26 @@
 
     function saveRecords(records) {
       recordsCache = Array.isArray(records) ? records : [];
+      refreshVendorSuggestions();
+    }
+
+    function refreshVendorSuggestions() {
+      const datalist = document.getElementById("vendorSuggestions");
+      if (!datalist) return;
+      const vendors = window.AiwaVendorHistory.getPersonalVendors(getRecords(), currentUser?.employeeId);
+      datalist.innerHTML = vendors.map((vendor) => {
+        const details = [vendor.vendorTaxId && `統編 ${vendor.vendorTaxId}`, vendor.contactPerson].filter(Boolean).join(" · ");
+        return `<option value="${escapeHtml(vendor.vendorName)}" label="${escapeHtml(details)}"></option>`;
+      }).join("");
+    }
+
+    function applyPersonalVendor() {
+      const vendors = window.AiwaVendorHistory.getPersonalVendors(getRecords(), currentUser?.employeeId);
+      const vendor = window.AiwaVendorHistory.findPersonalVendor(vendors, document.getElementById("vendorName").value);
+      if (!vendor) return;
+      ["vendorTaxId", "contactPerson", "vendorAddress", "phone", "mobile", "fax"].forEach((field) => {
+        document.getElementById(field).value = vendor[field] || "";
+      });
     }
 
     function formatCurrency(value) {
@@ -1376,6 +1398,8 @@
     function closeDialog() {
       document.getElementById("messageDialog").close();
     }
+
+    document.getElementById("vendorName").addEventListener("change", applyPersonalVendor);
 
     document.getElementById("loginForm").addEventListener("submit", async (event) => {
       event.preventDefault();

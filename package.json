@@ -8,7 +8,7 @@
     "preview": "node dev-server.js",
     "admin:reset": "node scripts/reset-admin-password.js",
     "test": "node --test",
-    "check": "node -c api/submit-request.js && node -c api/approval-action.js && node -c api/auth.js && node -c api/users.js && node -c api/requests.js && node -c api/_lib/http.js && node -c api/_lib/security.js && node -c api/_lib/sheets.js && node -c api/_lib/db.js && node -c api/_lib/domain-postgres.js && node -c api/_lib/domain.js && node -c dev-server.js && node -c scripts/reset-admin-password.js"
+    "check": "node -c api/submit-request.js && node -c api/approval-action.js && node -c api/auth.js && node -c api/users.js && node -c api/requests.js && node -c api/_lib/http.js && node -c api/_lib/security.js && node -c api/_lib/sheets.js && node -c api/_lib/db.js && node -c api/_lib/domain-postgres.js && node -c api/_lib/domain.js && node -c dev-server.js && node -c scripts/reset-admin-password.js && node -c assets/triplicate-template.js"
   },
   "dependencies": {
     "googleapis": "^140.0.1",

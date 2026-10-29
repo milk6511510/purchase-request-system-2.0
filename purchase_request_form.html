@@ -1293,6 +1293,7 @@
     </div>
   </dialog>
 
+  <script src="/assets/triplicate-template.js"></script>
   <script>
     const EDIT_LIMIT_HOURS = 24;
     let currentUser = null;
@@ -2146,21 +2147,62 @@
 
       list.innerHTML = records.map((record) => {
         const editable = canEdit(record);
+        const approved = window.AiwaTriplicateTemplate.isFullyApproved(record);
         const title = record.vendorName || record.items?.[0]?.name || "未命名請購單";
         const statusLabel = record.approvalStatus?.label || "待單位主管簽核";
-        const button = editable
-          ? `<button class="primary-btn" type="button" onclick="loadRecord('${record.id}')">修改</button>`
-          : `<button class="ghost-btn" type="button" onclick="showDialog('已超過可修改時間', '此請購單已超過 24 小時，如需修改請聯繫 IT 或相關工作人員。')">聯繫 IT</button>`;
+        const editButton = editable
+          ? `<button class="primary-btn" type="button" onclick="loadRecord('${escapeHtml(record.id)}')">修改</button>`
+          : `<button class="ghost-btn" type="button" data-locked>聯繫 IT</button>`;
+        const printButton = approved
+          ? `<button class="ghost-btn" type="button" data-triplicate-id="${escapeHtml(record.id)}">列印 / 另存三聯 PDF</button>`
+          : "";
 
         return `
           <article class="record-row">
-            <div><strong>${escapeHtml(title)}</strong><span>單號：${record.id}</span></div>
-            <div><strong>${formatCurrency(record.totalAmount)}</strong><span>申請日期：${record.applyDate || "-"}</span></div>
-            <div><strong>${escapeHtml(statusLabel)}</strong><span>${editable ? "24 小時內可修改" : "已鎖定，請聯繫 IT"}</span></div>
-            <div class="record-actions">${button}</div>
+            <div><strong>${escapeHtml(title)}</strong><span>單號：${escapeHtml(record.id)}</span></div>
+            <div><strong>${formatCurrency(record.totalAmount)}</strong><span>申請日期：${escapeHtml(record.applyDate || "-")}</span></div>
+            <div><strong>${escapeHtml(statusLabel)}</strong><span>${editable ? "24 小時內可修改" : approved ? "簽核完成" : "已鎖定，請聯繫 IT"}</span></div>
+            <div class="record-actions">${editButton}${printButton}</div>
           </article>
         `;
       }).join("");
+      list.querySelectorAll("[data-locked]").forEach((button) => {
+        button.addEventListener("click", () => showDialog("已超過可修改時間", "此請購單已超過 24 小時，如需修改請聯繫 IT 或相關工作人員。"));
+      });
+      list.querySelectorAll("[data-triplicate-id]").forEach((button) => {
+        button.addEventListener("click", () => openTriplicatePrint(button.dataset.triplicateId));
+      });
+    }
+
+    function openTriplicatePrint(id) {
+      const record = getRecords().find((entry) => entry.id === id);
+      if (!record || record.employeeId !== currentUser?.employeeId) {
+        showDialog("無法產生三聯單", "只能下載自己送出的請購單。");
+        return;
+      }
+      if (!window.AiwaTriplicateTemplate.isFullyApproved(record)) {
+        showDialog("尚未完成簽核", "請購單完成單位主管與總經理核准後，才能產生三聯單。");
+        return;
+      }
+
+      const printWindow = window.open("", "_blank");
+      if (!printWindow) {
+        showDialog("無法開啟列印視窗", "請允許此網站開啟彈出視窗後，再試一次。");
+        return;
+      }
+
+      try {
+        printWindow.opener = null;
+        printWindow.document.open();
+        printWindow.document.write(window.AiwaTriplicateTemplate.renderDocument(record, {
+          logoUrl: new URL("/assets/aiwa-logo.svg", window.location.href).href,
+          printedAt: new Date().toISOString()
+        }));
+        printWindow.document.close();
+      } catch (error) {
+        printWindow.close();
+        showDialog("三聯單產生失敗", error.message || "目前無法產生列印文件。");
+      }
     }
 
     function escapeHtml(value) {

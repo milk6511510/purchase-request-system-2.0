@@ -20,6 +20,9 @@
       --warn: #a95f00;
       --danger: #bd2c2c;
       --shadow: 0 12px 30px rgba(77, 28, 39, 0.1);
+      --radius-control: 12px;
+      --radius-card: 16px;
+      --radius-shell: 20px;
     }
 
     * { box-sizing: border-box; }
@@ -50,7 +53,7 @@
       background: linear-gradient(112deg, rgba(255, 255, 255, 0.92), rgba(255, 238, 241, 0.88));
       color: var(--ink);
       padding: 14px 18px;
-      border-radius: 8px;
+      border-radius: var(--radius-shell);
       box-shadow: var(--shadow);
     }
 
@@ -173,7 +176,7 @@
 
     .tab-btn, .ghost-btn, .primary-btn, .danger-btn, .icon-btn {
       border: 1px solid transparent;
-      border-radius: 6px;
+      border-radius: var(--radius-control);
       min-height: 40px;
       padding: 9px 14px;
       cursor: pointer;
@@ -229,7 +232,7 @@
     .panel {
       background: var(--panel);
       border: 1px solid var(--line);
-      border-radius: 8px;
+      border-radius: var(--radius-shell);
       box-shadow: var(--shadow);
       overflow: hidden;
     }
@@ -275,7 +278,7 @@
 
     .form-section {
       border: 1px solid var(--line);
-      border-radius: 8px;
+      border-radius: var(--radius-card);
       margin-bottom: 18px;
       overflow: hidden;
     }
@@ -315,7 +318,7 @@
     input, select, textarea {
       width: 100%;
       border: 1px solid #d7cbd0;
-      border-radius: 5px;
+      border-radius: var(--radius-control);
       background: #fff;
       padding: 9px 10px;
       color: var(--ink);
@@ -344,7 +347,7 @@
       align-items: center;
       gap: 7px;
       border: 1px solid #e8dfe1;
-      border-radius: 6px;
+      border-radius: 10px;
       background: #fff;
       padding: 8px 9px;
       font-weight: 600;
@@ -359,6 +362,9 @@
     .items-table-wrap {
       overflow-x: auto;
       padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-card);
+      background: rgba(255, 255, 255, 0.48);
     }
 
     table {
@@ -382,7 +388,7 @@
 
     td input {
       border: 0;
-      border-radius: 0;
+      border-radius: 8px;
       padding: 6px;
       min-height: 34px;
       background: #fffafb;
@@ -432,7 +438,7 @@
       width: min(440px, 100%);
       background: rgba(255, 255, 255, 0.78);
       border: 1px solid rgba(234, 0, 41, 0.14);
-      border-radius: 8px;
+      border-radius: var(--radius-shell);
       box-shadow: 0 22px 54px rgba(102, 24, 42, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.8);
       padding: 24px;
     }
@@ -475,7 +481,7 @@
       background: var(--brand-soft);
       border: 1px solid #f0d0d6;
       padding: 10px;
-      border-radius: 6px;
+      border-radius: var(--radius-control);
     }
 
     .records-list {
@@ -489,7 +495,7 @@
       gap: 12px;
       align-items: center;
       border: 1px solid var(--line);
-      border-radius: 8px;
+      border-radius: var(--radius-card);
       padding: 12px;
       background: #fff;
     }
@@ -516,7 +522,7 @@
       background: #fff8ea;
       color: #6f4700;
       padding: 10px 12px;
-      border-radius: 6px;
+      border-radius: var(--radius-control);
       margin-bottom: 14px;
       font-weight: 700;
     }
@@ -547,7 +553,7 @@
 
     .photo-card {
       border: 1px solid var(--line);
-      border-radius: 8px;
+      border-radius: var(--radius-card);
       background: #fff;
       overflow: hidden;
     }
@@ -592,7 +598,7 @@
     .signature-preview {
       min-height: 86px;
       border: 1px dashed #d5c3c8;
-      border-radius: 8px;
+      border-radius: var(--radius-control);
       background: #fffafb;
       display: grid;
       place-items: center;
@@ -617,7 +623,7 @@
 
     .approval-step {
       border: 1px solid var(--line);
-      border-radius: 8px;
+      border-radius: var(--radius-card);
       padding: 10px;
       background: #fff;
     }
@@ -638,7 +644,7 @@
 
     .signature-pad-wrap {
       border: 1px solid var(--line);
-      border-radius: 8px;
+      border-radius: var(--radius-control);
       overflow: hidden;
       background: #fff;
       touch-action: none;
@@ -662,7 +668,7 @@
     .admin-card {
       border: 1px solid rgba(234, 0, 41, 0.13);
       background: rgba(255, 255, 255, 0.58);
-      border-radius: 16px;
+      border-radius: var(--radius-shell);
       padding: 16px;
       box-shadow: 0 14px 34px rgba(77, 28, 39, 0.1);
       backdrop-filter: blur(22px) saturate(150%);
@@ -687,7 +693,7 @@
       gap: 10px;
       border: 1px solid rgba(224, 194, 200, 0.72);
       background: rgba(255, 255, 255, 0.64);
-      border-radius: 12px;
+      border-radius: var(--radius-control);
       padding: 10px;
     }
 
@@ -770,7 +776,7 @@
 
     dialog {
       border: 0;
-      border-radius: 8px;
+      border-radius: var(--radius-shell);
       padding: 0;
       width: min(430px, calc(100% - 24px));
       box-shadow: 0 25px 70px rgba(0, 0, 0, 0.25);

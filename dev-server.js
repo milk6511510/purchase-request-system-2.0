@@ -49,6 +49,18 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (pathname === "/assets/aiwa-logo.svg" && (req.method === "GET" || req.method === "HEAD")) {
+    try {
+      const logo = await fs.promises.readFile(path.join(__dirname, "assets", "aiwa-logo.svg"));
+      res.writeHead(200, { "Content-Type": "image/svg+xml; charset=utf-8" });
+      return res.end(req.method === "HEAD" ? undefined : logo);
+    } catch (error) {
+      console.error(error);
+      res.writeHead(404);
+      return res.end("Not found");
+    }
+  }
+
   if (req.method !== "GET" && req.method !== "HEAD") {
     res.writeHead(405, { Allow: "GET, HEAD" });
     return res.end();

@@ -1,4 +1,4 @@
-const { json } = require("./_lib/http");
+const { json, publicErrorMessage } = require("./_lib/http");
 const { getSessionUser, getRequests, canReadRequest, publicUser } = require("./_lib/domain");
 
 module.exports = async function handler(req, res) {
@@ -16,6 +16,9 @@ module.exports = async function handler(req, res) {
     json(res, 200, { ok: true, user: publicUser(user), requests });
   } catch (error) {
     console.error(error);
-    json(res, error.statusCode || 500, { ok: false, error: error.message || "請購單查詢服務暫時無法使用" });
+    json(res, error.statusCode || 500, {
+      ok: false,
+      error: publicErrorMessage(error, "請購單查詢服務暫時無法使用")
+    });
   }
 };

@@ -34,6 +34,9 @@ function sendJson(res, status, body) {
 const server = http.createServer(async (req, res) => {
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("X-Permitted-Cross-Domain-Policies", "none");
+  res.setHeader("Content-Security-Policy", "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'");
   const pathname = new URL(req.url, "http://127.0.0.1").pathname;
 
   if (pathname.startsWith("/api/")) {
@@ -78,6 +81,18 @@ const server = http.createServer(async (req, res) => {
       const vendorHistory = await fs.promises.readFile(path.join(__dirname, "assets", "vendor-history.js"));
       res.writeHead(200, { "Content-Type": "text/javascript; charset=utf-8" });
       return res.end(req.method === "HEAD" ? undefined : vendorHistory);
+    } catch (error) {
+      console.error(error);
+      res.writeHead(404);
+      return res.end("Not found");
+    }
+  }
+
+  if (pathname === "/assets/app.js" && (req.method === "GET" || req.method === "HEAD")) {
+    try {
+      const app = await fs.promises.readFile(path.join(__dirname, "assets", "app.js"));
+      res.writeHead(200, { "Content-Type": "text/javascript; charset=utf-8" });
+      return res.end(req.method === "HEAD" ? undefined : app);
     } catch (error) {
       console.error(error);
       res.writeHead(404);

@@ -58,6 +58,15 @@ test("approval roles remain department-scoped and distinct from system access", 
 test("only a super administrator receives the system override", () => {
   const superAdmin = { employeeId: "A001", role: "superAdmin" };
   assert.equal(canReadRequest(superAdmin, request), true);
-  assert.equal(canEditRequest(superAdmin, request), true);
+  assert.equal(canEditRequest(superAdmin, request), false);
   assert.equal(canApprove(superAdmin, request), true);
+});
+
+test("approvals are blocked after the workflow is closed or the current step is no longer pending", () => {
+  const superAdmin = { employeeId: "A001", role: "superAdmin" };
+  assert.equal(canApprove(superAdmin, { ...request, approvalStatus: { currentStep: "closed" } }), false);
+  assert.equal(canApprove(superAdmin, {
+    ...request,
+    approvalStatus: { currentStep: "unitManager", route: [{ step: "unitManager", status: "approved" }] }
+  }), false);
 });

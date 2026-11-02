@@ -78,25 +78,36 @@ async function ensureHeaders(tabName, requiredHeaders) {
 
 async function writeRow(tabName, rowNumber, headers, object) {
   const sheets = getSheetsClient();
-  const values = headers.map((header) => object[header] ?? "");
+  const values = headers.map((header) => normalizeCellValue(header, object[header]));
   await sheets.spreadsheets.values.update({
     spreadsheetId: spreadsheetId(),
     range: `${tabName}!A${rowNumber}:${columnLetter(headers.length)}${rowNumber}`,
-    valueInputOption: "USER_ENTERED",
+    valueInputOption: "RAW",
     requestBody: { values: [values] }
   });
 }
 
 async function appendRow(tabName, headers, object) {
   const sheets = getSheetsClient();
-  const values = headers.map((header) => object[header] ?? "");
+  const values = headers.map((header) => normalizeCellValue(header, object[header]));
   await sheets.spreadsheets.values.append({
     spreadsheetId: spreadsheetId(),
     range: `${tabName}!A:${columnLetter(headers.length)}`,
-    valueInputOption: "USER_ENTERED",
+    valueInputOption: "RAW",
     insertDataOption: "INSERT_ROWS",
     requestBody: { values: [values] }
   });
+}
+
+const NUMERIC_HEADERS = new Set(["合計金額", "申購數量", "核准數量", "單價", "金額"]);
+
+function normalizeCellValue(header, value) {
+  if (value === undefined || value === null || value === "") return "";
+  if (NUMERIC_HEADERS.has(header)) {
+    const number = Number(value);
+    return Number.isFinite(number) ? number : "";
+  }
+  return typeof value === "string" ? value : value;
 }
 
 async function upsertRow(tabName, requiredHeaders, identityHeader, identityValue, object) {
@@ -121,9 +132,19 @@ async function clearRowsByValue(tabName, identityHeader, identityValue) {
 }
 
 function parseDataUrl(dataUrl) {
-  const match = String(dataUrl || "").match(/^data:([^;]+);base64,(.+)$/);
+  const match = String(dataUrl || "").match(/^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/]+={0,2})$/i);
   if (!match) return null;
-  return { mimeType: match[1], buffer: Buffer.from(match[2], "base64") };
+  const encoded = match[2];
+  if (encoded.length % 4 !== 0) return null;
+  const buffer = Buffer.from(encoded, "base64");
+  if (!buffer.length || buffer.length > 512 * 1024 || buffer.toString("base64") !== encoded) return null;
+  const mimeType = match[1].toLowerCase();
+  const isPng = mimeType === "image/png" && buffer.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+  const isJpeg = mimeType === "image/jpeg" && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
+  const isWebp = mimeType === "image/webp" && buffer.subarray(0, 4).toString() === "RIFF"
+    && buffer.subarray(8, 12).toString() === "WEBP";
+  if (!isPng && !isJpeg && !isWebp) return null;
+  return { mimeType, buffer };
 }
 
 async function uploadDataUrl({ dataUrl, fileName, folderId }) {
@@ -151,9 +172,11 @@ module.exports = {
   getDriveClient,
   getSheetRows,
   ensureHeaders,
+  normalizeCellValue,
   writeRow,
   appendRow,
   upsertRow,
   clearRowsByValue,
+  parseDataUrl,
   uploadDataUrl
 };

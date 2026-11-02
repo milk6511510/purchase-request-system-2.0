@@ -151,7 +151,6 @@ function canReadRequest(user, request) {
 
 function canEditRequest(user, request) {
   if (!canReadRequest(user, request)) return false;
-  if (isRole(user, "superAdmin")) return true;
   const createdAt = new Date(request.createdAt).getTime();
   return user.employeeId === request.employeeId
     && Number.isFinite(createdAt)
@@ -160,8 +159,11 @@ function canEditRequest(user, request) {
 }
 
 function canApprove(user, request) {
-  if (isRole(user, "superAdmin")) return true;
   const currentStep = request.approvalStatus?.currentStep;
+  if (!["unitManager", "generalManager"].includes(currentStep)) return false;
+  const currentRouteStep = request.approvalStatus?.route?.find((step) => step.step === currentStep);
+  if (currentRouteStep && currentRouteStep.status !== "pending") return false;
+  if (isRole(user, "superAdmin")) return true;
   if (currentStep === "unitManager" && isRole(user, "unitManager")) {
     return String(user.departmentCode || "").toUpperCase() === String(request.departmentCode || "").toUpperCase();
   }
@@ -174,6 +176,9 @@ async function getSessionUser(req, allowPasswordChange = false) {
   if (!session) throw new AuthError();
   const user = await getUser(session.employeeId);
   if (!user || !user.active) throw new AuthError("帳號尚未啟用或已停用");
+  if (session.userUpdatedAt !== String(user.updatedAt || "")) {
+    throw new AuthError("登入狀態已更新，請重新登入");
+  }
   if (user.mustChangePassword && !allowPasswordChange) {
     const error = new AuthError("首次登入請先修改密碼");
     error.statusCode = 403;

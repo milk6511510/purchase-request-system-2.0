@@ -21,7 +21,7 @@
 
 Neon 專案：`AIWA purchase-request-system`。`development` 與 `production` 分支都已建立 `purchase_request` schema，production migrations 已先在暫存分支驗證再套用。
 
-依序執行 `db/migrations/001_initial_schema.sql`、`002_signature_binary.sql` 與 `003_roles_and_password_reset.sql` 後，資料會放在 `purchase_request` schema。Vercel Production 已設定伺服器端 Neon pooled `DATABASE_URL` 與 `AUTH_SECRET`；環境變數不提交到 GitHub。舊 Google Sheet 帳號與請購資料尚未匯入。
+依序執行 `db/migrations/001_initial_schema.sql`、`002_signature_binary.sql`、`003_roles_and_password_reset.sql` 與 `004_login_rate_limits.sql` 後，資料會放在 `purchase_request` schema。Vercel Production 已設定伺服器端 Neon pooled `DATABASE_URL` 與 `AUTH_SECRET`；環境變數不提交到 GitHub。舊 Google Sheet 帳號與請購資料尚未匯入。
 
 應用程式使用受限資料庫角色，不需要資料庫管理員權限。新分支建立 schema 後，以 Neon SQL Editor 的管理者身分建立執行角色並授權：
 
@@ -85,6 +85,14 @@ MAIL_FROM=請購單系統 <noreply@example.com>
 3. 新環境可另外設定 `ADMIN_INITIAL_PASSWORD`；既有 A001 帳號需走正式密碼重設流程。
 4. 若要保存照片，建立 Google Drive 私有資料夾並授權 Service Account，再設定 `GOOGLE_DRIVE_FOLDER_ID`。
 5. 正式站：[purchase-request-system-2-0.vercel.app](https://purchase-request-system-2-0.vercel.app/)。目前請購主資料以 Neon 為準；Google Sheet 雙寫與舊資料匯入尚未完成。
+
+## 安全措施
+
+- 登入失敗依帳號與用戶端 IP 限流；Neon 模式需先套用 `004_login_rate_limits.sql`。
+- API 限制請求大小、驗證同源寫入、校驗角色與部門，並限制附件格式與大小。
+- Session 使用 HttpOnly、SameSite 與 HTTPS Secure Cookie；使用者權限或密碼更新後，舊 Session 失效。
+- 瀏覽器端啟用 CSP、禁止 iframe 嵌入及 MIME 嗅探；試算表使用 RAW 寫入，避免使用者文字被當公式執行。
+- 正式環境仍須由維運者保管強隨機 `AUTH_SECRET`、限制 Vercel/Neon/GitHub 管理員存取、維持 MFA，並安排資料備份與復原演練。程式安全檢查無法取代這些帳號與營運控管。
 
 ## API
 

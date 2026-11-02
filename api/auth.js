@@ -1,6 +1,7 @@
-const { json, readBody, setCookie, clearCookie } = require("./_lib/http");
+const { json, readBody, setCookie, clearCookie, requireSameOrigin, publicErrorMessage } = require("./_lib/http");
 const { hashPassword, verifyPassword, createSession, SESSION_COOKIE, SESSION_TTL_SECONDS } = require("./_lib/security");
 const { getUser, saveUser, publicUser } = require("./_lib/domain");
+const { getClientIp, getLoginRetryAfter, recordFailedLogin, clearAccountFailures } = require("./_lib/login-rate-limit");
 
 function normalizeEmployeeId(value) {
   return String(value || "").trim().toUpperCase();
@@ -26,11 +27,28 @@ async function ensureAdminBootstrap() {
   });
 }
 
-async function login(body, res) {
+function sendRateLimit(res, delayMs) {
+  const retryAfter = Math.max(1, Math.ceil(delayMs / 1000));
+  res.setHeader("Retry-After", String(retryAfter));
+  json(res, 429, { ok: false, error: `登入嘗試過多，請於 ${Math.ceil(retryAfter / 60)} 分鐘後再試` });
+}
+
+async function login(body, req, res) {
   const employeeId = normalizeEmployeeId(body.employeeId);
   const password = String(body.password || "");
   if (!employeeId || !password) {
     json(res, 400, { ok: false, error: "請輸入員工編號與密碼" });
+    return;
+  }
+  if (employeeId.length > 64 || password.length > 128) {
+    json(res, 401, { ok: false, error: "員工編號或密碼錯誤，或帳號尚未啟用" });
+    return;
+  }
+
+  const clientIp = getClientIp(req);
+  const delay = await getLoginRetryAfter(employeeId, clientIp);
+  if (delay > 0) {
+    sendRateLimit(res, delay);
     return;
   }
 
@@ -39,11 +57,18 @@ async function login(body, res) {
     user = await ensureAdminBootstrap();
   }
   if (!user || !user.active || !(await verifyPassword(password, user.passwordHash))) {
+    await recordFailedLogin(employeeId, clientIp);
+    const retryAfter = await getLoginRetryAfter(employeeId, clientIp);
+    if (retryAfter > 0) {
+      sendRateLimit(res, retryAfter);
+      return;
+    }
     json(res, 401, { ok: false, error: "員工編號或密碼錯誤，或帳號尚未啟用" });
     return;
   }
 
-  setCookie(res, SESSION_COOKIE, createSession(user.employeeId), { maxAge: SESSION_TTL_SECONDS });
+  await clearAccountFailures(employeeId);
+  setCookie(res, SESSION_COOKIE, createSession(user.employeeId, user.updatedAt), { maxAge: SESSION_TTL_SECONDS });
   json(res, 200, { ok: true, user: publicUser(user) });
 }
 
@@ -63,6 +88,10 @@ async function changePassword(body, req, res) {
     json(res, 400, { ok: false, error: "新密碼至少需要 8 個字元" });
     return;
   }
+  if (newPassword.length > 128) {
+    json(res, 400, { ok: false, error: "新密碼不可超過 128 個字元" });
+    return;
+  }
   if (newPassword !== String(body.confirmPassword || "")) {
     json(res, 400, { ok: false, error: "兩次輸入的新密碼不一致" });
     return;
@@ -77,6 +106,7 @@ async function changePassword(body, req, res) {
     mustChangePassword: false,
     passwordHash: await hashPassword(newPassword)
   });
+  setCookie(res, SESSION_COOKIE, createSession(updated.employeeId, updated.updatedAt), { maxAge: SESSION_TTL_SECONDS });
   json(res, 200, { ok: true, user: publicUser(updated) });
 }
 
@@ -95,7 +125,13 @@ module.exports = async function handler(req, res) {
       return;
     }
 
+    if (!requireSameOrigin(req, res)) return;
+
     const body = await readBody(req);
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      json(res, 400, { ok: false, error: "登入資料格式無效" });
+      return;
+    }
     if (body.action === "logout") {
       clearCookie(res, SESSION_COOKIE);
       json(res, 200, { ok: true });
@@ -109,9 +145,9 @@ module.exports = async function handler(req, res) {
       json(res, 403, { ok: false, error: "目前不開放員工自行註冊，請洽最高權限者建立帳號並核發臨時密碼。" });
       return;
     }
-    await login(body, res);
+    await login(body, req, res);
   } catch (error) {
     console.error(error);
-    json(res, error.statusCode || 500, { ok: false, error: error.message || "登入服務暫時無法使用" });
+    json(res, error.statusCode || 500, { ok: false, error: publicErrorMessage(error, "登入服務暫時無法使用") });
   }
 };

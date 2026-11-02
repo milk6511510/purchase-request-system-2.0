@@ -11,7 +11,11 @@ test("employee self-registration is disabled", async () => {
     end(body) { this.body = body; }
   };
 
-  await authHandler({ method: "POST", body: { action: "register" } }, res);
+  await authHandler({
+    method: "POST",
+    headers: { host: "app.test", origin: "http://app.test" },
+    body: { action: "register" }
+  }, res);
 
   assert.equal(res.statusCode, 403);
   assert.match(JSON.parse(res.body).error, /不開放員工自行註冊/);

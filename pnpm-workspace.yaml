@@ -1,0 +1,37 @@
+allowBuilds:
+  esbuild: true
+overrides:
+  tar: ^7.5.22
+minimumReleaseAgeExclude:
+  - '@vercel/backends@23.0.1'
+  - '@vercel/build-utils@15.1.1'
+  - '@vercel/cervel@0.1.90'
+  - '@vercel/cli-support@65.7.0'
+  - '@vercel/container@23.0.2'
+  - '@vercel/elysia@23.0.1'
+  - '@vercel/express@23.0.1'
+  - '@vercel/fastify@23.0.1'
+  - '@vercel/gatsby-plugin-vercel-builder@2.2.82'
+  - '@vercel/go@26.0.1'
+  - '@vercel/h3@23.0.1'
+  - '@vercel/hono@23.0.1'
+  - '@vercel/hydrogen@24.0.1'
+  - '@vercel/koa@23.0.1'
+  - '@vercel/nestjs@23.0.1'
+  - '@vercel/next@27.0.1'
+  - '@vercel/node@28.0.1'
+  - '@vercel/python@29.0.1'
+  - '@vercel/redwood@25.0.1'
+  - '@vercel/remix-builder@28.0.1'
+  - '@vercel/ruby@25.0.1'
+  - '@vercel/rust@24.0.1'
+  - '@vercel/sandbox@3.9.1'
+  - '@vercel/static-build@25.0.1'
+  - '@vercel/vc-native-darwin-arm64@65.7.0'
+  - '@vercel/vc-native-darwin-x64@65.7.0'
+  - '@vercel/vc-native-linux-arm64-musl@65.7.0'
+  - '@vercel/vc-native-linux-arm64@65.7.0'
+  - '@vercel/vc-native-linux-x64-musl@65.7.0'
+  - '@vercel/vc-native-linux-x64@65.7.0'
+  - sandbox@4.11.1
+  - vercel@65.7.0

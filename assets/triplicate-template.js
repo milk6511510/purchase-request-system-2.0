@@ -226,7 +226,6 @@
         @media screen{.page{width:210mm;min-height:285mm;padding:0;background:#fff;box-shadow:0 2mm 8mm #999; padding-bottom:3mm}}
         @media print{body{background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}.page{margin:0;box-shadow:none} .section-title,.items-table th,.quote-table th{background:#eee!important}}
       </style></head><body>${pages.join("")}
-      <script>window.addEventListener("load",function(){var images=Array.from(document.images);Promise.all(images.map(function(image){if(image.complete)return Promise.resolve();return new Promise(function(resolve){image.addEventListener("load",resolve,{once:true});image.addEventListener("error",resolve,{once:true});});})).then(function(){window.focus();setTimeout(function(){window.print();},180);});});<\/script>
     </body></html>`;
   }
 

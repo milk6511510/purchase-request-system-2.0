@@ -13,13 +13,14 @@ function requiredEnv(name) {
 
 async function hashPassword(password, minimumLength = 8) {
   if (!password || password.length < minimumLength) throw new Error(`密碼至少需要 ${minimumLength} 個字元`);
+  if (password.length > 128) throw new Error("密碼不可超過 128 個字元");
   const salt = crypto.randomBytes(16).toString("hex");
   const derivedKey = await scrypt(password, salt, 64);
   return `scrypt$${salt}$${derivedKey.toString("hex")}`;
 }
 
 async function verifyPassword(password, storedHash) {
-  if (!password || !storedHash) return false;
+  if (!password || password.length > 128 || !storedHash) return false;
   const [algorithm, salt, expectedHex] = String(storedHash).split("$");
   if (algorithm !== "scrypt" || !salt || !expectedHex) return false;
   const actual = await scrypt(password, salt, 64);
@@ -31,13 +32,20 @@ function sessionSecret() {
   return requiredEnv("AUTH_SECRET");
 }
 
+function hashRateLimitKey(type, value) {
+  return crypto.createHmac("sha256", sessionSecret())
+    .update(`${type}:${String(value || "")}`)
+    .digest("hex");
+}
+
 function sign(value) {
   return crypto.createHmac("sha256", sessionSecret()).update(value).digest("base64url");
 }
 
-function createSession(employeeId) {
+function createSession(employeeId, userUpdatedAt = "") {
   const payload = Buffer.from(JSON.stringify({
     employeeId,
+    userUpdatedAt: String(userUpdatedAt || ""),
     exp: Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS
   })).toString("base64url");
   return `${payload}.${sign(payload)}`;
@@ -66,6 +74,7 @@ module.exports = {
   SESSION_TTL_SECONDS,
   hashPassword,
   verifyPassword,
+  hashRateLimitKey,
   createSession,
   readSession
 };

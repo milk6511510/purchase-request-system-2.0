@@ -1,4 +1,4 @@
-const { json, readBody } = require("./_lib/http");
+const { json, readBody, requireSameOrigin, publicErrorMessage } = require("./_lib/http");
 const {
   getSessionUser,
   getRequest,
@@ -7,7 +7,7 @@ const {
   persistRequest,
   appendApprovalLog
 } = require("./_lib/domain");
-const { sendMail } = require("./integrations");
+const { sendMail, escapeHtml } = require("./integrations");
 
 function actionLabel(action) {
   return {
@@ -56,15 +56,28 @@ module.exports = async function handler(req, res) {
       return;
     }
 
+    if (!requireSameOrigin(req, res)) return;
+
     const actor = await getSessionUser(req);
     const body = await readBody(req);
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      json(res, 400, { ok: false, error: "簽核資料格式無效" });
+      return;
+    }
     const action = String(body.action || "").trim();
-    if (!body.id || !["approve", "reject", "cancel"].includes(action)) {
+    const requestId = String(body.id || "");
+    if (!requestId || requestId.length > 128 || !/^[A-Za-z0-9_-]+$/.test(requestId)
+      || !["approve", "reject", "cancel"].includes(action)) {
       json(res, 400, { ok: false, error: "請提供有效的請購單號與簽核動作" });
       return;
     }
+    const note = String(body.note || "").trim();
+    if (note.length > 1000) {
+      json(res, 400, { ok: false, error: "簽核說明不可超過 1000 個字元" });
+      return;
+    }
 
-    const request = await getRequest(body.id);
+    const request = await getRequest(requestId);
     if (!request) {
       json(res, 404, { ok: false, error: "找不到請購單" });
       return;
@@ -91,7 +104,7 @@ module.exports = async function handler(req, res) {
       action: actionLabel(action),
       actor,
       step: request.approvalStatus?.currentStep || "",
-      note: body.note || ""
+      note
     });
 
     if (action === "reject" || action === "cancel") {
@@ -100,10 +113,10 @@ module.exports = async function handler(req, res) {
         subject: `請購單${actionLabel(action)}：${request.id}`,
         html: `
           <p>你的請購單狀態已更新。</p>
-          <p><strong>請購單號：</strong>${request.id}</p>
-          <p><strong>狀態：</strong>${actionLabel(action)}</p>
-          <p><strong>處理人：</strong>${actor.name || actor.employeeId}</p>
-          <p><strong>說明：</strong>${body.note || "未提供說明"}</p>
+          <p><strong>請購單號：</strong>${escapeHtml(request.id)}</p>
+          <p><strong>狀態：</strong>${escapeHtml(actionLabel(action))}</p>
+          <p><strong>處理人：</strong>${escapeHtml(actor.name || actor.employeeId)}</p>
+          <p><strong>說明：</strong>${escapeHtml(note || "未提供說明")}</p>
         `
       });
     }
@@ -111,6 +124,6 @@ module.exports = async function handler(req, res) {
     json(res, 200, { ok: true, id: updated.id, status: updated.approvalStatus.label, request: updated });
   } catch (error) {
     console.error(error);
-    json(res, error.statusCode || 500, { ok: false, error: error.message || "簽核服務暫時無法使用" });
+    json(res, error.statusCode || 500, { ok: false, error: publicErrorMessage(error, "簽核服務暫時無法使用") });
   }
 };

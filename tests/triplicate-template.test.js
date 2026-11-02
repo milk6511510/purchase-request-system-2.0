@@ -73,6 +73,7 @@ test("triplicate output includes three destinations, approval metadata, and esca
   assert.match(html, /data:image\/png;base64,YWJj/);
   assert.match(html, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
   assert.doesNotMatch(html, /<script>alert\(1\)<\/script>/);
+  assert.doesNotMatch(html, /<script\b/i);
 });
 
 test("long item lists add labeled continuation pages for every copy", () => {
